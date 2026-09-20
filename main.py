@@ -1,5 +1,4 @@
 """
-
 Arquitetura corrigida:
   - SensoryEncoder gera L/C/R (rápido, confiável — base do movimento)
   - FlyWire roda em thread separada com n_steps=30, atualiza a cada ~5 frames
@@ -165,6 +164,18 @@ def main():
     use_flywire = fw_runner is not None
     logger.info(f"FlyWire: {'ativo (thread background)' if use_flywire else 'desativado'}")
 
+    from brain.neural_viz    import NeuralViz
+    from brain.neural_server import NeuralServer
+    import webbrowser, pathlib
+
+    neural_server = NeuralServer(port=8765)
+    neural_server.start()
+
+    viz_path = pathlib.Path(__file__).parent / "visualizer.html"
+    if viz_path.exists():
+        webbrowser.open(viz_path.as_uri())
+        logger.info(f"Visualizador aberto: {viz_path}")
+
     capture      = ScreenCapture(monitor=args.monitor)
     encoder      = SensoryEncoder()
     circuit_lif  = RewardCircuit()
@@ -221,15 +232,15 @@ def main():
         with _mss.mss() as _sct:
             _monitors = _sct.monitors
             if len(_monitors) > 2:
-                _mon2 = _monitors[2]   # índice 0 = all, 1 = mon1, 2 = mon2
+                _mon2 = _monitors[2]
                 _win_x = _mon2["left"]
                 _win_y = _mon2["top"]
                 _win_w = min(_mon2["width"],  1280)
                 _win_h = min(_mon2["height"], 720)
             else:
-                # Só um monitor — abre ao lado
                 _win_x, _win_y, _win_w, _win_h = 80, 80, 1280, 720
 
+        neural_viz = NeuralViz(width=_win_w, height=_win_h)
         cv2.namedWindow("Fly Brain v0.5", cv2.WINDOW_NORMAL)
         cv2.resizeWindow("Fly Brain v0.5", _win_w, _win_h)
         cv2.moveWindow("Fly Brain v0.5", _win_x, _win_y)
@@ -339,6 +350,21 @@ def main():
 
             gamepad.send(output)
 
+            neural_server.push({
+                "fw_bias":      round(float(fw_bias), 4),
+                "left":         round(float(left),    3),
+                "center":       round(float(center),  3),
+                "right":        round(float(right),   3),
+                "mag":          round(float(output.magnitude), 3),
+                "collected":    total_collected,
+                "pressed_keys": list(gamepad._pressed),
+                "circuits": {
+                    "reward": {"rate": round(abs(float(fw_bias))*0.05, 4)},
+                    "escape": {"rate": 0.0},
+                    "orient": {"rate": round(abs(float(fw_bias))*0.02, 4)},
+                },
+            })
+
             if frame_n % args.fps == 0:
                 now = time.time()
                 fps_disp = args.fps / (now - fps_t)
@@ -352,31 +378,24 @@ def main():
                 )
 
             if args.debug:
-                vis = draw_detections(frame, items)
+                # Frame do jogo com bounding boxes
+                game_annotated = draw_detections(frame, items)
 
-                if frame_n - last_collection_frame < 45:
-                    cv2.putText(vis, f"COLETADO #{total_collected}",
-                                (10, h-20), cv2.FONT_HERSHEY_SIMPLEX,
-                                0.9, (0,0,0), 4, cv2.LINE_AA)
-                    cv2.putText(vis, f"COLETADO #{total_collected}",
-                                (10, h-20), cv2.FONT_HERSHEY_SIMPLEX,
-                                0.9, (0,220,80), 2, cv2.LINE_AA)
-
-                fw_info = f"fw_bias={fw_bias:+.3f}" if use_flywire else "FlyWire off"
-                hud = [
-                    f"FPS {fps_disp:.1f}  itens {len(items)}  coletados {total_collected}",
-                    f"L={left:.2f}  C={center:.2f}  R={right:.2f}  dopa={dopamine:.1f}",
-                    f"ctrl x={output.x:+.2f}  mag={output.magnitude:.2f}  skip={skip_focus}",
-                    f"{fw_info}  patience {focus_patience}/{PATIENCE_LIMIT}",
-                ]
-                for i, line in enumerate(hud):
-                    y = 22 + i * 22
-                    cv2.putText(vis, line, (10,y), cv2.FONT_HERSHEY_SIMPLEX,
-                                0.48, (0,0,0), 3, cv2.LINE_AA)
-                    cv2.putText(vis, line, (10,y), cv2.FONT_HERSHEY_SIMPLEX,
-                                0.48, (255,255,255), 1, cv2.LINE_AA)
-
-                cv2.imshow("Fly Brain v0.5", vis)
+                viz_state = {
+                    "fw_bias":   float(fw_bias),
+                    "left":      float(left),
+                    "center":    float(center),
+                    "right":     float(right),
+                    "mag":       float(output.magnitude),
+                    "collected": total_collected,
+                    "circuits": {
+                        "reward": {"rate": abs(float(fw_bias)) * 0.05},
+                        "escape": {"rate": 0.0},
+                        "orient": {"rate": abs(float(fw_bias)) * 0.02},
+                    },
+                }
+                viz_frame = neural_viz.render(viz_state, game_frame=game_annotated)
+                cv2.imshow("Fly Brain v0.5", viz_frame)
                 cv2.waitKey(1)
 
             elapsed = time.time() - t0
@@ -386,6 +405,7 @@ def main():
     except KeyboardInterrupt:
         logger.info("Interrompido.")
     finally:
+        neural_server.stop()
         if fw_runner: fw_runner.stop()
         gamepad.close()
         capture.close()

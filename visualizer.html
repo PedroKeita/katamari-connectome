@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fly Brain · Katamari</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0b1f16;overflow:hidden;font-family:'Courier New',monospace;color:#6ab99c;width:100vw;height:100vh;display:grid;grid-template-columns:1fr 1fr}
+
+/* PAINEL ESQUERDO — CÉREBRO */
+#left{position:relative;border-right:1px solid #122a1e}
+#brain-canvas{width:100%;height:100%;display:block}
+#brain-header{position:absolute;top:20px;left:24px;pointer-events:none}
+#brain-header h1{font-size:22px;font-weight:bold;color:#a8e6cf;letter-spacing:0}
+#brain-header .sub{font-size:12px;color:#2d7a5a;margin-top:2px}
+#active-count{font-size:13px;color:#6ab99c;margin-top:8px}
+#drag-hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-size:10px;color:#1f5c40;letter-spacing:1px}
+
+/* Stats */
+#stats{position:absolute;bottom:40px;left:24px;font-size:11px;line-height:2.2;color:#2d7a5a}
+#stats .v{color:#6ab99c;margin-left:4px}
+#stats .hi{color:#a8e6cf}
+
+/* PAINEL DIREITO — MOSCA + TECLADO */
+#right{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;position:relative;padding:20px}
+#right-title{position:absolute;top:20px;left:24px;font-size:10px;color:#1f5c40;letter-spacing:2px}
+
+/* Mosca */
+#fly-svg{filter:drop-shadow(0 0 6px #2d7a5a44)}
+
+/* Teclado */
+#keyboard{display:flex;flex-direction:column;gap:7px;align-items:center}
+.kb-row{display:flex;gap:7px}
+.key{
+  width:54px;height:54px;border-radius:8px;
+  background:#0d2218;border:1px solid #122a1e;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:#1f5c40;letter-spacing:1px;
+  transition:all 0.06s;position:relative;
+}
+.key::after{
+  content:'';position:absolute;bottom:5px;left:50%;transform:translateX(-50%);
+  width:28px;height:2px;border-radius:1px;background:#122a1e;transition:all 0.06s;
+}
+.key.on{
+  background:#0f2e1e;border-color:#6ab99c;color:#a8e6cf;
+  box-shadow:0 0 18px #6ab99c22,inset 0 0 8px #6ab99c11;
+  transform:translateY(2px);
+}
+.key.on::after{background:#6ab99c33}
+.key.gap{visibility:hidden}
+.kb-labels{display:flex;justify-content:space-between;width:100%;padding:0 4px;font-size:9px;color:#1f5c40;letter-spacing:2px;margin-top:2px}
+
+/* Bias */
+#bias-wrap{width:100%;padding:0 16px}
+#bias-lbl{font-size:9px;color:#1f5c40;letter-spacing:2px;margin-bottom:6px;text-align:center}
+#bias-bg{height:4px;background:#0d2218;border-radius:2px;position:relative}
+#bias-mid{position:absolute;left:50%;top:-3px;width:1px;height:10px;background:#122a1e}
+#bias-fill{position:absolute;top:0;height:4px;border-radius:2px;transition:all .08s}
+
+/* Flash */
+#flash{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:28px;font-weight:bold;color:#a8e6cf;
+  text-shadow:0 0 30px #6ab99c;
+  opacity:0;pointer-events:none;letter-spacing:4px;white-space:nowrap;z-index:99;
+}
+
+/* WS */
+#ws{position:absolute;top:20px;right:20px;font-size:9px;letter-spacing:2px;color:#1f5c40}
+#ws.on{color:#6ab99c}
+</style>
+</head>
+<body>
+
+<!-- ESQUERDO: CÉREBRO 3D -->
+<div id="left">
+  <canvas id="brain-canvas"></canvas>
+  <div id="brain-header">
+    <h1>Tiny mind.</h1>
+    <div class="sub">FlyWire v783 · 22,667 neurons · 59,959 synapses</div>
+    <div id="active-count">0  recently active</div>
+  </div>
+  <div id="stats">
+    <div>L / C / R <span class="v hi" id="s-lcr">—</span></div>
+    <div>BIAS <span class="v hi" id="s-bias">—</span></div>
+    <div>MAG <span class="v" id="s-mag">—</span></div>
+    <div>COLETAS <span class="v hi" id="s-col">0</span></div>
+  </div>
+  <div id="drag-hint">Drag to rotate · neurons firing in real time</div>
+</div>
+
+<!-- DIREITO: MOSCA + TECLADO -->
+<div id="right">
+  <div id="right-title">MOTOR OUTPUT</div>
+  <div id="ws">● DISCONNECTED</div>
+
+  <!-- Mosca SVG (vista de cima, estilo minimalista Swat) -->
+  <svg id="fly-svg" width="190" height="120" viewBox="0 0 190 120">
+    <!-- asas -->
+    <ellipse id="wl" cx="56" cy="50" rx="46" ry="18" fill="rgba(106,185,156,0.08)" stroke="#2d7a5a" stroke-width="0.8" transform="rotate(-22,56,50)"/>
+    <ellipse id="wr" cx="134" cy="50" rx="46" ry="18" fill="rgba(106,185,156,0.08)" stroke="#2d7a5a" stroke-width="0.8" transform="rotate(22,134,50)"/>
+    <!-- abdômen -->
+    <ellipse cx="95" cy="82" rx="9" ry="21" fill="#0e2219" stroke="#1a3828" stroke-width="0.7"/>
+    <line x1="87" y1="73" x2="103" y2="73" stroke="#1a3828" stroke-width="0.6"/>
+    <line x1="86" y1="82" x2="104" y2="82" stroke="#1a3828" stroke-width="0.6"/>
+    <line x1="87" y1="90" x2="103" y2="90" stroke="#1a3828" stroke-width="0.6"/>
+    <!-- tórax -->
+    <ellipse cx="95" cy="57" rx="12" ry="15" fill="#122a1e" stroke="#1e3d2d" stroke-width="0.7"/>
+    <!-- cabeça -->
+    <circle cx="95" cy="39" r="11" fill="#122a1e" stroke="#1e3d2d" stroke-width="0.7"/>
+    <!-- olhos -->
+    <ellipse cx="88" cy="37" rx="4.5" ry="3.8" fill="#1e6644" opacity="0.9"/>
+    <ellipse cx="102" cy="37" rx="4.5" ry="3.8" fill="#1e6644" opacity="0.9"/>
+    <!-- antenas -->
+    <line x1="91" y1="29" x2="84" y2="20" stroke="#1a3828" stroke-width="0.9"/>
+    <circle cx="83" cy="19" r="1.5" fill="#2d7a5a"/>
+    <line x1="99" y1="29" x2="106" y2="20" stroke="#1a3828" stroke-width="0.9"/>
+    <circle cx="107" cy="19" r="1.5" fill="#2d7a5a"/>
+    <!-- pernas -->
+    <g stroke="#122a1e" stroke-width="0.8" fill="none">
+      <polyline points="84,59 70,67 62,76"/>
+      <polyline points="82,65 66,72 58,80"/>
+      <polyline points="84,71 70,79 64,90"/>
+      <polyline points="106,59 120,67 128,76"/>
+      <polyline points="108,65 124,72 132,80"/>
+      <polyline points="106,71 120,79 126,90"/>
+    </g>
+  </svg>
+
+  <!-- Teclado -->
+  <div id="keyboard">
+    <div class="kb-row">
+      <div class="key gap"></div>
+      <div class="key" id="k-w">W</div>
+      <div class="key gap"></div>
+      <div class="key gap"></div>
+      <div class="key" id="k-i">I</div>
+      <div class="key gap"></div>
+    </div>
+    <div class="kb-row">
+      <div class="key" id="k-a">A</div>
+      <div class="key" id="k-s">S</div>
+      <div class="key" id="k-d">D</div>
+      <div class="key" id="k-j">J</div>
+      <div class="key" id="k-k">K</div>
+      <div class="key" id="k-l">L</div>
+    </div>
+    <div class="kb-labels">
+      <span>LEFT STICK</span><span>RIGHT STICK</span>
+    </div>
+  </div>
+
+  <!-- Bias bar -->
+  <div id="bias-wrap">
+    <div id="bias-lbl">LATERAL BIAS — MUSHROOM BODY</div>
+    <div id="bias-bg">
+      <div id="bias-mid"></div>
+      <div id="bias-fill"></div>
+    </div>
+  </div>
+</div>
+
+<div id="flash"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ================================================================
+// GERA NUVEM DE PONTOS EM FORMA DE CÉREBRO (estilo Swat)
+// Dois lobos + cauda ventral, distribuição 3D densa
+// ================================================================
+function seededRNG(seed){
+  let s=seed;
+  return()=>{s=Math.imul(s^s>>>15,s|1);s^=s+Math.imul(s^s>>>7,s|61);return((s^s>>>14)>>>0)/2**32;};
+}
+
+function makeNeurons(){
+  const rng=seededRNG(0xdeadbeef);
+  const pts=[];
+
+  // Adiciona pontos numa forma de nuvem
+  function addEllipsoid(cx,cy,cz,rx,ry,rz,n,circuit){
+    for(let i=0;i<n;i++){
+      const u=rng(),v=rng(),w=rng();
+      const r=Math.cbrt(w)*0.98;
+      const th=Math.acos(2*u-1),ph=2*Math.PI*v;
+      pts.push({
+        x:cx+rx*r*Math.sin(th)*Math.cos(ph),
+        y:cy+ry*r*Math.cos(th),
+        z:cz+rz*r*Math.sin(th)*Math.sin(ph),
+        circuit,
+        base:0.12+rng()*0.10,
+      });
+    }
+  }
+
+  // Lobo esquerdo do Mushroom Body
+  addEllipsoid(-18, 8, 0, 22, 18, 14, 900, 'reward');
+  // Lobo direito
+  addEllipsoid( 18, 8, 0, 22, 18, 14, 900, 'reward');
+  // Lobo antenal (abaixo e à frente)
+  addEllipsoid(-12,-8, 6,  8,  6,  6, 200, 'reward');
+  addEllipsoid( 12,-8, 6,  8,  6,  6, 200, 'reward');
+  // Cauda ventral (como na imagem)
+  addEllipsoid(  0,-22, 0, 6, 14,  6, 300, 'orient');
+  addEllipsoid(  0,-36, 0, 4,  8,  4, 120, 'orient');
+  // Lobos ópticos (laterais)
+  addEllipsoid(-46, 4, 0,  8, 14,  6,  80, 'escape');
+  addEllipsoid( 46, 4, 0,  8, 14,  6,  80, 'escape');
+
+  return pts;
+}
+
+const NEURONS = makeNeurons();
+const N = NEURONS.length;
+
+// ================================================================
+// THREE.JS
+// ================================================================
+const canvas = document.getElementById('brain-canvas');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+renderer.setClearColor(0x0b1f16, 1);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+camera.position.set(0, 0, 120);
+camera.lookAt(0, -5, 0);
+
+// Geometria de pontos
+const positions = new Float32Array(N*3);
+const colors    = new Float32Array(N*3);
+const sizes     = new Float32Array(N);
+
+const BASE_COLOR = new THREE.Color('#9aecd4');
+const ESC_COLOR  = new THREE.Color('#c2f0e0');
+const ORI_COLOR  = new THREE.Color('#7acfaa');
+
+NEURONS.forEach((n,i)=>{
+  positions[i*3]  =n.x; positions[i*3+1]=n.y; positions[i*3+2]=n.z;
+  const c=n.circuit==='escape'?ESC_COLOR:n.circuit==='orient'?ORI_COLOR:BASE_COLOR;
+  colors[i*3]=c.r*n.base; colors[i*3+1]=c.g*n.base; colors[i*3+2]=c.b*n.base;
+  sizes[i]=1.8;
+});
+
+const geo = new THREE.BufferGeometry();
+geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+geo.setAttribute('pColor',   new THREE.BufferAttribute(colors, 3));
+geo.setAttribute('pSize',    new THREE.BufferAttribute(sizes, 1));
+
+// Shader de pontos suavizados (estilo Swat — pontos com glow suave)
+const mat = new THREE.ShaderMaterial({
+  uniforms:{},
+  vertexShader:`
+    attribute float pSize;
+    attribute vec3 pColor;
+    varying vec3 vColor;
+    void main(){
+      vColor=pColor;
+      vec4 mv=modelViewMatrix*vec4(position,1.0);
+      gl_PointSize=pSize*(300.0/-mv.z);
+      gl_Position=projectionMatrix*mv;
+    }
+  `,
+  fragmentShader:`
+    varying vec3 vColor;
+    void main(){
+      float d=length(gl_PointCoord-0.5)*2.0;
+      if(d>1.0)discard;
+      float alpha=(1.0-d*d)*2.0;
+      gl_FragColor=vec4(vColor,alpha);
+    }
+  `,
+  transparent:true,
+  depthWrite:false,
+  blending:THREE.AdditiveBlending,
+});
+
+const points = new THREE.Points(geo, mat);
+scene.add(points);
+
+// Resize
+function resize(){
+  const p=canvas.parentElement;
+  const w=p.clientWidth, h=p.clientHeight;
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize',resize);
+
+// ================================================================
+// DRAG TO ROTATE (igual ao Swat)
+// ================================================================
+let drag=false, lastX=0, lastY=0;
+let rotX=0.2, rotY=0;
+
+canvas.addEventListener('mousedown',e=>{drag=true;lastX=e.clientX;lastY=e.clientY;});
+window.addEventListener('mouseup',()=>drag=false);
+window.addEventListener('mousemove',e=>{
+  if(!drag)return;
+  rotY+=(e.clientX-lastX)*0.008;
+  rotX+=(e.clientY-lastY)*0.005;
+  rotX=Math.max(-1.2,Math.min(1.2,rotX));
+  lastX=e.clientX; lastY=e.clientY;
+});
+
+// Touch
+canvas.addEventListener('touchstart',e=>{drag=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;},{passive:true});
+window.addEventListener('touchend',()=>drag=false);
+window.addEventListener('touchmove',e=>{
+  if(!drag)return;
+  rotY+=(e.touches[0].clientX-lastX)*0.01;
+  rotX+=(e.touches[0].clientY-lastY)*0.006;
+  lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+},{passive:true});
+
+// ================================================================
+// LOOP DE ANIMAÇÃO
+// ================================================================
+let t=0;
+let activeCount=0;
+
+function updateNeurons(state){
+  const bias=state.fw_bias||0;
+  const rewardRate=(state.circuits?.reward?.rate||0);
+  const escapeRate=(state.circuits?.escape?.rate||0);
+  const orientRate=(state.circuits?.orient?.rate||0);
+
+  const pulse=0.5+0.5*Math.sin(t*3.8);
+  const rng2=seededRNG(Math.floor(t*20)&0xfffff);
+  let active=0;
+
+  const biasL=Math.max(0,-bias), biasR=Math.max(0,bias);
+
+  NEURONS.forEach((n,i)=>{
+    let rate=0;
+    let c=BASE_COLOR;
+    if(n.circuit==='reward'){
+      // bias lateral: neurônios no lado direito (x>0) acendem mais quando bias>0
+      const sideMod = n.x>0 ? biasR*0.8 : biasL*0.8;
+      rate=rewardRate*6+sideMod;
+      c=BASE_COLOR;
+    } else if(n.circuit==='escape'){
+      rate=escapeRate*6;
+      c=ESC_COLOR;
+    } else {
+      rate=orientRate*5+0.01;
+      c=ORI_COLOR;
+    }
+
+    const isActive=rng2()<rate;
+    const b=isActive?(n.base+(0.85+0.15*pulse)*Math.min(rate*1.5,1)):n.base;
+    const bs=Math.min(b,1);
+
+    colors[i*3]  =c.r*bs;
+    colors[i*3+1]=c.g*bs;
+    colors[i*3+2]=c.b*bs;
+    sizes[i]=isActive?3.5:1.8;
+    if(isActive) active++;
+  });
+
+  geo.attributes.pColor.needsUpdate=true;
+  geo.attributes.pSize.needsUpdate=true;
+  activeCount=active;
+}
+
+let state={fw_bias:0,left:0,center:0,right:0,mag:0,collected:0,pressed_keys:[],circuits:{reward:{rate:0.015},escape:{rate:0},orient:{rate:0.008}}};
+let prevCollected=0;
+let flashTimer=0;
+let autoRotY=0;
+
+function animate(ts){
+  requestAnimationFrame(animate);
+  t=ts/1000;
+
+  // Rotação auto suave quando não está em drag
+  if(!drag) autoRotY+=0.002;
+  points.rotation.x=rotX;
+  points.rotation.y=rotY+autoRotY;
+
+  updateNeurons(state);
+
+  // Flash
+  if((state.collected||0)>prevCollected){
+    flashTimer=1.5; prevCollected=state.collected;
+  }
+  if(flashTimer>0){
+    flashTimer-=0.016;
+    const fl=document.getElementById('flash');
+    fl.style.opacity=Math.min(flashTimer,1);
+    fl.textContent=`✓ COLETADO  #${state.collected}`;
+  } else {
+    document.getElementById('flash').style.opacity=0;
+  }
+
+  // Asa da mosca
+  const a=Math.sin(t*8)*14;
+  document.getElementById('wl').setAttribute('transform',`rotate(${-22+a},56,50)`);
+  document.getElementById('wr').setAttribute('transform',`rotate(${22-a},134,50)`);
+
+  // Teclas
+  const pressed=state.pressed_keys||[];
+  ['w','a','s','d','i','j','k','l'].forEach(k=>{
+    const el=document.getElementById('k-'+k);
+    if(el) el.className='key'+(pressed.includes(k)?' on':'');
+  });
+
+  // Bias bar
+  const bias=state.fw_bias||0;
+  const fill=document.getElementById('bias-fill');
+  const pct=Math.abs(bias)*50;
+  fill.style.left=bias>=0?'50%':`${50-pct}%`;
+  fill.style.width=`${pct}%`;
+  fill.style.background=bias>=0?'#6ab99c':'#c46a6a';
+
+  // HUD
+  document.getElementById('active-count').textContent=`${activeCount}  recently active`;
+  document.getElementById('s-lcr').textContent=`${(state.left||0).toFixed(2)} / ${(state.center||0).toFixed(2)} / ${(state.right||0).toFixed(2)}`;
+  document.getElementById('s-bias').textContent=(bias>=0?'+':'')+bias.toFixed(3);
+  document.getElementById('s-mag').textContent=(state.mag||0).toFixed(2);
+  document.getElementById('s-col').textContent=state.collected||0;
+
+  renderer.render(scene,camera);
+}
+requestAnimationFrame(animate);
+
+// ================================================================
+// WEBSOCKET
+// ================================================================
+const wsEl=document.getElementById('ws');
+function connectWS(){
+  try{
+    const ws=new WebSocket('ws://localhost:8765');
+    ws.onopen=()=>{wsEl.textContent='● CONNECTED';wsEl.className='on';};
+    ws.onmessage=e=>{try{state=JSON.parse(e.data);}catch{}};
+    ws.onclose=()=>{wsEl.textContent='● DISCONNECTED';wsEl.className='';setTimeout(connectWS,2000);};
+    ws.onerror=()=>ws.close();
+  }catch(e){setTimeout(connectWS,3000);}
+}
+connectWS();
+</script>
+</body>
+</html>
