@@ -1,17 +1,22 @@
 """
-Pipeline limpo:
-  frame → detect → VisualField → SensoryEncoder → L/C/R
-       → RewardCircuit (LIF) → Integrator → Gamepad
 
-Sem StimulusType.REWARD, sem items_to_stimuli.
-O cérebro recebe dados sensoriais brutos.
+Arquitetura corrigida:
+  - SensoryEncoder gera L/C/R (rápido, confiável — base do movimento)
+  - FlyWire roda em thread separada com n_steps=30, atualiza a cada ~5 frames
+  - Resultado FlyWire modula dopamine e turn_sensitivity do integrador
+  - Se FlyWire não carregou, comportamento idêntico ao v0.4
+
+Teclas debug: Q=sair  P=pausar  D=dopamine  F=toggle FlyWire modulation
 """
 
 import argparse
 import logging
+import threading
 import time
+import os
 
 import cv2
+import numpy as np
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,17 +26,125 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 MAX_ITEMS_GUARD = 40
+DATA_DIR = "data"
 
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--dry-run",  action="store_true")
-    p.add_argument("--debug",    action="store_true")
-    p.add_argument("--fps",      type=int,   default=30)
-    p.add_argument("--monitor",  type=int,   default=2)
-    p.add_argument("--dopamine", type=float, default=1.0)
+    p.add_argument("--dry-run",    action="store_true")
+    p.add_argument("--debug",      action="store_true")
+    p.add_argument("--fps",        type=int,   default=30)
+    p.add_argument("--monitor",    type=int,   default=2)
+    p.add_argument("--dopamine",   type=float, default=1.0)
+    p.add_argument("--no-flywire", action="store_true")
     return p.parse_args()
 
+
+# ------------------------------------------------------------------
+# FlyWire background runner
+# ------------------------------------------------------------------
+
+class FlyWireRunner:
+    """
+    Roda os circuitos FlyWire em thread separada.
+    O loop principal lê .lateral_bias a cada frame.
+
+    lateral_bias : float em [-1, 1]
+        > 0 = bias para direita
+        < 0 = bias para esquerda
+        0   = neutro
+    """
+
+    def __init__(self, circuits: dict):
+        self.circuits      = circuits   # {"reward": FlyWireCircuit, ...}
+        self.lateral_bias  = 0.0        # resultado mais recente
+        self.active        = True
+        self._lock         = threading.Lock()
+        self._left_str     = 0.0
+        self._right_str    = 0.0
+        self._thread       = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def update_input(self, left: float, right: float):
+        """Atualiza o estímulo de entrada (chamado pelo loop principal)."""
+        with self._lock:
+            self._left_str  = float(left)
+            self._right_str = float(right)
+
+    def _run(self):
+        while self.active:
+            with self._lock:
+                ls = self._left_str
+                rs = self._right_str
+
+            if ls + rs < 0.01:
+                with self._lock:
+                    self.lateral_bias = 0.0
+                time.sleep(0.05)
+                continue
+
+            try:
+                # Reward: ORNs→PNs→KCs→PAMs com n_steps=30
+                L_r, C_r, R_r = self.circuits["reward"].stimulate_lateral(
+                    left_strength  = ls * 3.0,
+                    right_strength = rs * 3.0,
+                    n_steps        = 30,
+                )
+
+                # Orientation: DNs lateralizados
+                L_o, C_o, R_o = self.circuits["orient"].stimulate_lateral(
+                    left_strength  = ls * 2.0,
+                    right_strength = rs * 2.0,
+                    n_steps        = 30,
+                )
+
+                # Bias = diferença R-L ponderada pelos dois circuitos
+                bias_r = R_r - L_r   # >0 = mais PAM direito ativo
+                bias_o = R_o - L_o   # >0 = mais DN direito ativo
+                bias   = 0.7 * bias_r + 0.3 * bias_o
+
+                with self._lock:
+                    self.lateral_bias = float(np.clip(bias, -1.0, 1.0))
+
+            except Exception as e:
+                logger.debug(f"FlyWire thread erro: {e}")
+
+            time.sleep(0.05)   # ~20Hz
+
+    def stop(self):
+        self.active = False
+
+
+def load_flywire(data_dir: str):
+    try:
+        from brain.flywire_loader  import FlyWireLoader
+        from brain.flywire_circuit import FlyWireCircuit
+
+        if not os.path.exists(os.path.join(data_dir, "neuron_annotations.tsv")):
+            return None
+
+        logger.info("Carregando circuitos FlyWire v783...")
+        loader   = FlyWireLoader(data_dir=data_dir, min_weight=3)
+        reward_c = loader.load_reward_circuit()
+        escape_c = loader.load_escape_circuit()
+        orient_c = loader.load_orientation_circuit()
+        logger.info(f"  {reward_c.summary()}")
+        logger.info(f"  {escape_c.summary()}")
+        logger.info(f"  {orient_c.summary()}")
+
+        return {
+            "reward": FlyWireCircuit(reward_c),
+            "escape": FlyWireCircuit(escape_c),
+            "orient": FlyWireCircuit(orient_c),
+        }
+    except Exception as e:
+        logger.warning(f"FlyWire não carregou: {e}")
+        return None
+
+
+# ------------------------------------------------------------------
+# Main
+# ------------------------------------------------------------------
 
 def main():
     args = parse_args()
@@ -45,11 +158,16 @@ def main():
     from control.integrator    import CircuitIntegrator
     from control.gamepad       import GamepadController
 
-    logger.info("=== FLY BRAIN KATAMARI v0.4 ===")
+    logger.info("=== FLY BRAIN KATAMARI v0.5 ===")
+
+    fw_circuits = None if args.no_flywire else load_flywire(DATA_DIR)
+    fw_runner   = FlyWireRunner(fw_circuits) if fw_circuits else None
+    use_flywire = fw_runner is not None
+    logger.info(f"FlyWire: {'ativo (thread background)' if use_flywire else 'desativado'}")
 
     capture      = ScreenCapture(monitor=args.monitor)
     encoder      = SensoryEncoder()
-    circuit      = RewardCircuit()
+    circuit_lif  = RewardCircuit()
     integrator   = CircuitIntegrator(dopamine=args.dopamine)
     gamepad      = GamepadController(dry_run=args.dry_run)
     col_detect   = CollectionDetector()
@@ -61,21 +179,65 @@ def main():
     skip_focus            = 0
     total_collected       = 0
     last_collection_frame = -999
+    fw_bias               = 0.0
 
-    frame_n  = 0
-    fps_t    = time.time()
-    fps_disp = 0.0
-    interval = 1.0 / args.fps
+    frame_n   = 0
+    fps_t     = time.time()
+    fps_disp  = 0.0
+    interval  = 1.0 / args.fps
     paused_ui = False
 
+    # --- Hotkeys globais (funcionam independente de qual janela está em foco) ---
+    # F1 = pausar/retomar   F2 = dopamine toggle   F3 = FlyWire toggle   F4 = sair
+    _stop_flag = threading.Event()
+
     if args.debug:
-        cv2.namedWindow("Fly Brain v0.4", cv2.WINDOW_NORMAL)
-        cv2.moveWindow("Fly Brain v0.4", 80, 80)
+        from pynput import keyboard as _kb
+
+        def _on_press(key):
+            nonlocal paused_ui, use_flywire
+            try:
+                if key == _kb.Key.f1:
+                    paused_ui = not paused_ui
+                    logger.info(f"{'PAUSADO' if paused_ui else 'Retomado'} (F1)")
+                elif key == _kb.Key.f2:
+                    args.dopamine = 2.0 if args.dopamine == 1.0 else 1.0
+                    logger.info(f"Dopamine base → {args.dopamine} (F2)")
+                elif key == _kb.Key.f3:
+                    use_flywire = (not use_flywire) and (fw_runner is not None)
+                    logger.info(f"FlyWire {'ativo' if use_flywire else 'desativado'} (F3)")
+                elif key == _kb.Key.f4:
+                    logger.info("Encerrando (F4)")
+                    _stop_flag.set()
+            except Exception:
+                pass
+
+        _listener = _kb.Listener(on_press=_on_press)
+        _listener.start()
+        logger.info("Hotkeys globais: F1=pausar  F2=dopamine  F3=FlyWire  F4=sair")
+
+        # Descobre a posição do monitor 2 via mss
+        import mss as _mss
+        with _mss.mss() as _sct:
+            _monitors = _sct.monitors
+            if len(_monitors) > 2:
+                _mon2 = _monitors[2]   # índice 0 = all, 1 = mon1, 2 = mon2
+                _win_x = _mon2["left"]
+                _win_y = _mon2["top"]
+                _win_w = min(_mon2["width"],  1280)
+                _win_h = min(_mon2["height"], 720)
+            else:
+                # Só um monitor — abre ao lado
+                _win_x, _win_y, _win_w, _win_h = 80, 80, 1280, 720
+
+        cv2.namedWindow("Fly Brain v0.5", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("Fly Brain v0.5", _win_w, _win_h)
+        cv2.moveWindow("Fly Brain v0.5", _win_x, _win_y)
 
     logger.info(f"Monitor={args.monitor}  FPS={args.fps}  dry-run={args.dry_run}")
 
     try:
-        while True:
+        while not _stop_flag.is_set():
             t0 = time.time()
             frame   = capture.capture()
             h, w    = frame.shape[:2]
@@ -87,7 +249,7 @@ def main():
                     vis = frame.copy()
                     cv2.putText(vis, "PAUSADO (P)", (w//2-100, h//2),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,0,200), 3)
-                    cv2.imshow("Fly Brain v0.4", vis)
+                    cv2.imshow("Fly Brain v0.5", vis)
                     key = cv2.waitKey(1) & 0xFF
                     if key in (ord('q'), 27): break
                     if key == ord('p'): paused_ui = False
@@ -100,7 +262,7 @@ def main():
                     vis = frame.copy()
                     cv2.putText(vis, "JOGO PAUSADO", (10, 50),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0,140,255), 2)
-                    cv2.imshow("Fly Brain v0.4", vis)
+                    cv2.imshow("Fly Brain v0.5", vis)
                     key = cv2.waitKey(1) & 0xFF
                     if key in (ord('q'), 27): break
                     if key == ord('p'): paused_ui = True
@@ -114,7 +276,6 @@ def main():
                 elapsed = time.time() - t0
                 if interval - elapsed > 0: time.sleep(interval - elapsed)
                 continue
-
             items = items_raw
 
             just_collected = col_detect.check(frame)
@@ -138,28 +299,56 @@ def main():
                     skip_focus = min(skip_focus + 1, len(items) - 1)
                     logger.info(f"Pulando para candidato #{skip_focus}")
             else:
-                focus_patience = 0
-                skip_focus = 0
+                focus_patience = 0; skip_focus = 0
 
             if skip_focus > 0 and len(items) > skip_focus:
                 items = items[skip_focus:] + items[:skip_focus]
 
-            # ---- pipeline sensorial → neural ----
+            # --- Campo visual → L/C/R (base do movimento) ---
             visual_field        = items_to_visual_field(items, w, h)
             left, center, right = encoder.encode(visual_field)
-            spikes              = circuit.step(left, center, right)
-            output              = integrator.integrate(left, center, right, spikes)
+
+            # --- FlyWire: alimenta a thread e lê o bias mais recente ---
+            if use_flywire and (left + right) > 0.05:
+                fw_runner.update_input(left, right)
+                fw_bias = fw_runner.lateral_bias
+
+                # O bias FlyWire ajusta sutilmente o dx
+                # bias > 0 = PAMs direitos mais ativos → empurra para direita
+                # bias < 0 = PAMs esquerdos mais ativos → empurra para esquerda
+                fw_bias_scaled = fw_bias * 0.3   # modulação suave (30%)
+            else:
+                fw_bias_scaled = 0.0
+
+            # --- Circuito LIF genérico (sempre roda para manter o spike) ---
+            spikes = circuit_lif.step(left, center, right)
+
+            # --- Integrador: L/C/R base + bias FlyWire ---
+            # O bias ajusta o dx sem sobrescrever a magnitude
+            output = integrator.integrate(left, center, right, spikes)
+
+            # Aplica bias FlyWire ao dx resultante
+            if use_flywire and abs(fw_bias_scaled) > 0.01:
+                new_x = float(np.clip(output.x + fw_bias_scaled, -1.0, 1.0))
+                from control.integrator import ControlOutput
+                output = ControlOutput(
+                    x=new_x,
+                    y=output.y,
+                    magnitude=output.magnitude
+                )
+
             gamepad.send(output)
 
             if frame_n % args.fps == 0:
-                now      = time.time()
+                now = time.time()
                 fps_disp = args.fps / (now - fps_t)
-                fps_t    = now
+                fps_t = now
+                fw_str = f"  fw_bias={fw_bias:+.2f}" if use_flywire else ""
                 logger.info(
                     f"FPS={fps_disp:.1f}  itens={len(items):2d}"
                     f"  L={left:.2f} C={center:.2f} R={right:.2f}"
                     f"  x={output.x:+.2f} mag={output.magnitude:.2f}"
-                    f"  coletados={total_collected}"
+                    f"  coletados={total_collected}{fw_str}"
                 )
 
             if args.debug:
@@ -167,33 +356,28 @@ def main():
 
                 if frame_n - last_collection_frame < 45:
                     cv2.putText(vis, f"COLETADO #{total_collected}",
-                                (10, h - 20), cv2.FONT_HERSHEY_SIMPLEX,
+                                (10, h-20), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.9, (0,0,0), 4, cv2.LINE_AA)
                     cv2.putText(vis, f"COLETADO #{total_collected}",
-                                (10, h - 20), cv2.FONT_HERSHEY_SIMPLEX,
+                                (10, h-20), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.9, (0,220,80), 2, cv2.LINE_AA)
 
+                fw_info = f"fw_bias={fw_bias:+.3f}" if use_flywire else "FlyWire off"
                 hud = [
-                    f"FPS {fps_disp:.1f}   itens {len(items)}   coletados {total_collected}",
-                    f"L={left:.2f}  C={center:.2f}  R={right:.2f}   dopa={dopamine:.1f}",
-                    f"spikes L={spikes['left']} C={spikes['center']} R={spikes['right']}",
+                    f"FPS {fps_disp:.1f}  itens {len(items)}  coletados {total_collected}",
+                    f"L={left:.2f}  C={center:.2f}  R={right:.2f}  dopa={dopamine:.1f}",
                     f"ctrl x={output.x:+.2f}  mag={output.magnitude:.2f}  skip={skip_focus}",
-                    f"patience {focus_patience}/{PATIENCE_LIMIT}",
+                    f"{fw_info}  patience {focus_patience}/{PATIENCE_LIMIT}",
                 ]
                 for i, line in enumerate(hud):
                     y = 22 + i * 22
-                    cv2.putText(vis, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX,
+                    cv2.putText(vis, line, (10,y), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.48, (0,0,0), 3, cv2.LINE_AA)
-                    cv2.putText(vis, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX,
+                    cv2.putText(vis, line, (10,y), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.48, (255,255,255), 1, cv2.LINE_AA)
 
-                cv2.imshow("Fly Brain v0.4", vis)
-                key = cv2.waitKey(1) & 0xFF
-                if key in (ord('q'), 27):   break
-                elif key == ord('p'):       paused_ui = True
-                elif key == ord('d'):
-                    args.dopamine = 2.0 if args.dopamine == 1.0 else 1.0
-                    logger.info(f"Dopamine base -> {args.dopamine}")
+                cv2.imshow("Fly Brain v0.5", vis)
+                cv2.waitKey(1)
 
             elapsed = time.time() - t0
             sleep = interval - elapsed
@@ -202,9 +386,12 @@ def main():
     except KeyboardInterrupt:
         logger.info("Interrompido.")
     finally:
+        if fw_runner: fw_runner.stop()
         gamepad.close()
         capture.close()
         if args.debug:
+            try: _listener.stop()
+            except Exception: pass
             cv2.destroyAllWindows()
         logger.info(f"Total coletados: {total_collected}")
         logger.info("=== ENCERRADO ===")
