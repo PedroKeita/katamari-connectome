@@ -164,7 +164,6 @@ def main():
     use_flywire = fw_runner is not None
     logger.info(f"FlyWire: {'ativo (thread background)' if use_flywire else 'desativado'}")
 
-    from brain.neural_viz    import NeuralViz
     from brain.neural_server import NeuralServer
     import webbrowser, pathlib
 
@@ -240,7 +239,7 @@ def main():
             else:
                 _win_x, _win_y, _win_w, _win_h = 80, 80, 1280, 720
 
-        neural_viz = NeuralViz(width=_win_w, height=_win_h)
+        
         cv2.namedWindow("Fly Brain v0.5", cv2.WINDOW_NORMAL)
         cv2.resizeWindow("Fly Brain v0.5", _win_w, _win_h)
         cv2.moveWindow("Fly Brain v0.5", _win_x, _win_y)
@@ -378,24 +377,33 @@ def main():
                 )
 
             if args.debug:
-                # Frame do jogo com bounding boxes
-                game_annotated = draw_detections(frame, items)
+                # Feed do jogo com bounding boxes verdes
+                vis = draw_detections(frame, items)
 
-                viz_state = {
-                    "fw_bias":   float(fw_bias),
-                    "left":      float(left),
-                    "center":    float(center),
-                    "right":     float(right),
-                    "mag":       float(output.magnitude),
-                    "collected": total_collected,
-                    "circuits": {
-                        "reward": {"rate": abs(float(fw_bias)) * 0.05},
-                        "escape": {"rate": 0.0},
-                        "orient": {"rate": abs(float(fw_bias)) * 0.02},
-                    },
-                }
-                viz_frame = neural_viz.render(viz_state, game_frame=game_annotated)
-                cv2.imshow("Fly Brain v0.5", viz_frame)
+                # Flash de coleta
+                if frame_n - last_collection_frame < 45:
+                    cv2.putText(vis, f"COLETADO #{total_collected}",
+                                (10, h - 20), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.9, (0, 0, 0), 4, cv2.LINE_AA)
+                    cv2.putText(vis, f"COLETADO #{total_collected}",
+                                (10, h - 20), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.9, (0, 220, 80), 2, cv2.LINE_AA)
+
+                # HUD minimalista
+                fw_str = f"fw={fw_bias:+.2f}" if use_flywire else "LIF"
+                hud = [
+                    f"FPS {fps_disp:.0f}  itens {len(items):2d}  coletados {total_collected}",
+                    f"L={left:.2f} C={center:.2f} R={right:.2f}  mag={output.magnitude:.2f}",
+                    f"x={output.x:+.2f}  dopa={dopamine:.1f}  {fw_str}",
+                ]
+                for i, line in enumerate(hud):
+                    y = 22 + i * 22
+                    cv2.putText(vis, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.48, (0, 0, 0), 3, cv2.LINE_AA)
+                    cv2.putText(vis, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.48, (200, 255, 200), 1, cv2.LINE_AA)
+
+                cv2.imshow("Fly Brain v0.5", vis)
                 cv2.waitKey(1)
 
             elapsed = time.time() - t0
