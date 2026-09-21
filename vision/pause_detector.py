@@ -1,5 +1,4 @@
 """
-
 Detecta se o jogo está pausado ou em menu.
 
 Duas estratégias combinadas:

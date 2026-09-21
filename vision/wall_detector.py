@@ -1,111 +1,217 @@
 """
-Detecta paredes/bordas próximas ao Katamari e gera um sinal
-de ameaça para o EscapeCircuit (LPLC2 → DNp01).
+Detecta paredes/obstáculos usando Optical Flow (Lucas-Kanade).
 
-Estratégia biológica:
-  A mosca detecta looming (objeto se aproximando) via LPLC2.
-  No Katamari, paredes e bordas escuras das fases simulam isso.
-  Detectamos regiões escuras densas nas bordas da tela.
+Princípio biológico:
+  Os neurônios LPLC2 da mosca respondem a "looming" — objetos ou
+  superfícies se expandindo radialmente no campo visual. Quando o
+  Katamari se aproxima de uma parede, o fundo expande radialmente
+  nas bordas da tela, exatamente o estímulo que os LPLC2 detectam.
+
+Algoritmo:
+  1. Detecta pontos-chave (Shi-Tomasi) nas bordas da tela
+  2. Rastreia esses pontos entre frames (Lucas-Kanade optical flow)
+  3. Calcula vetores de movimento — se apontam para fora do centro
+     com magnitude alta = looming = parede se aproximando
+  4. Suaviza o sinal com EMA para evitar falsos positivos
 
 Retorna:
   threat_level : float [0.0, 1.0]
-    0.0 = nenhuma parede detectada
-    1.0 = parede muito próxima, escape reflexo necessário
-  threat_side  : str 'left' | 'right' | 'center' | None
-    lado da tela onde a ameaça é maior
+  threat_side  : 'left' | 'right' | 'top' | 'bottom' | None
 """
 
 import cv2
 import numpy as np
 
 
-# Bordas da tela onde paredes normalmente aparecem
-# (exclui o centro onde está o Katamari)
-WALL_ZONES = [
-    # (x_norm, y_norm, w_norm, h_norm, nome)
-    (0.00, 0.10, 0.15, 0.80, "left"),    # borda esquerda
-    (0.85, 0.10, 0.15, 0.80, "right"),   # borda direita
-    (0.10, 0.00, 0.80, 0.12, "top"),     # borda superior
-    (0.10, 0.88, 0.80, 0.12, "bottom"),  # borda inferior
+# Zonas de detecção (bordas da tela, excluindo o centro)
+ZONES = [
+    (0.00, 0.10, 0.18, 0.80, "left"),
+    (0.82, 0.10, 0.18, 0.80, "right"),
+    (0.10, 0.00, 0.80, 0.15, "top"),
+    (0.10, 0.85, 0.80, 0.15, "bottom"),
 ]
 
-# Threshold de escuridão para considerar parede
-DARK_THRESHOLD = 40    # valor de brilho (0-255)
-WALL_DENSITY   = 0.25  # fração mínima de pixels escuros para disparar
+# Parâmetros Shi-Tomasi para detecção de pontos
+FEATURE_PARAMS = dict(
+    maxCorners    = 80,
+    qualityLevel  = 0.2,
+    minDistance   = 12,
+    blockSize     = 5,
+)
+
+# Parâmetros Lucas-Kanade
+LK_PARAMS = dict(
+    winSize  = (15, 15),
+    maxLevel = 2,
+    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03),
+)
 
 
 class WallDetector:
     """
-    Detecta paredes próximas ao Katamari via análise de regiões escuras
-    nas bordas da tela.
-
-    A detecção é inspirada no circuito LPLC2 da mosca — neurônios
-    sensíveis a objetos grandes e escuros se aproximando.
+    Detecta looming (expansão radial) via optical flow.
+    Biologicamente análogo aos neurônios LPLC2 da mosca.
     """
 
     def __init__(
         self,
-        dark_threshold: int   = DARK_THRESHOLD,
-        wall_density:   float = WALL_DENSITY,
-        smoothing:      float = 0.3,   # EMA para suavizar o sinal
+        looming_threshold: float = 0.35,  # fração de vetores apontando para fora
+        min_magnitude:     float = 1.5,   # magnitude mínima do flow (pixels/frame)
+        smoothing:         float = 0.35,
+        check_every:       int   = 4,     # analisa 1 a cada 4 frames (~7Hz a 30fps)
     ):
-        self.dark_threshold = dark_threshold
-        self.wall_density   = wall_density
-        self.smoothing      = smoothing
-        self._threat_smooth = 0.0
+        self.looming_threshold = looming_threshold
+        self.min_magnitude     = min_magnitude
+        self.smoothing         = smoothing
+        self.check_every       = check_every
+
+        self._prev_gray  = None
+        self._prev_pts   = None
+        self._threat     = 0.0
+        self._last_side  = None
+        self._frame_n    = 0
+
+    def _get_zone_mask(self, h, w, zone_name):
+        """Máscara para uma zona de borda específica."""
+        mask = np.zeros((h, w), dtype=np.uint8)
+        for (xn, yn, wn, hn, name) in ZONES:
+            if name == zone_name:
+                x1, y1 = int(xn*w), int(yn*h)
+                x2, y2 = int((xn+wn)*w), int((yn+hn)*h)
+                mask[y1:y2, x1:x2] = 255
+        return mask
+
+    def _full_border_mask(self, h, w):
+        """Máscara cobrindo todas as zonas de borda."""
+        mask = np.zeros((h, w), dtype=np.uint8)
+        for (xn, yn, wn, hn, _) in ZONES:
+            x1, y1 = int(xn*w), int(yn*h)
+            x2, y2 = int((xn+wn)*w), int((yn+hn)*h)
+            mask[y1:y2, x1:x2] = 255
+        return mask
 
     def detect(self, frame: np.ndarray) -> tuple[float, str | None]:
         """
         Analisa o frame e retorna (threat_level, threat_side).
-
-        Parameters
-        ----------
-        frame : BGR frame do OpenCV
-
-        Returns
-        -------
-        threat_level : float [0, 1]
-        threat_side  : 'left' | 'right' | 'top' | 'bottom' | None
         """
-        h, w = frame.shape[:2]
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        self._frame_n += 1
 
-        zone_threats = {}
+        # Reduz para acelerar
+        small = cv2.resize(frame, (0, 0), fx=0.4, fy=0.4)
+        h, w  = small.shape[:2]
+        gray  = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
 
-        for (xn, yn, wn, hn, name) in WALL_ZONES:
-            x1 = int(xn * w)
-            y1 = int(yn * h)
-            x2 = int((xn + wn) * w)
-            y2 = int((yn + hn) * h)
-
-            region = gray[y1:y2, x1:x2]
-            if region.size == 0:
-                continue
-
-            dark_pixels = np.sum(region < self.dark_threshold)
-            density     = dark_pixels / region.size
-
-            zone_threats[name] = density
-
-        if not zone_threats:
+        # Inicializa no primeiro frame
+        if self._prev_gray is None:
+            self._prev_gray = gray
+            border_mask = self._full_border_mask(h, w)
+            self._prev_pts = cv2.goodFeaturesToTrack(
+                gray, mask=border_mask, **FEATURE_PARAMS
+            )
             return 0.0, None
 
-        # Lado com maior ameaça
-        max_side  = max(zone_threats, key=zone_threats.get)
-        max_density = zone_threats[max_side]
+        # Pula frames intermediários (usa o último resultado)
+        if self._frame_n % self.check_every != 0:
+            return float(self._threat), self._last_side
 
-        # Normaliza para [0, 1] baseado no threshold
-        raw_threat = min(max_density / self.wall_density, 1.0)
+        # Precisa de pontos para rastrear
+        if self._prev_pts is None or len(self._prev_pts) < 4:
+            border_mask = self._full_border_mask(h, w)
+            self._prev_pts = cv2.goodFeaturesToTrack(
+                gray, mask=border_mask, **FEATURE_PARAMS
+            )
+            self._prev_gray = gray
+            return float(self._threat), self._last_side
 
-        # Suavização EMA para evitar falsos positivos momentâneos
-        self._threat_smooth = (
-            self.smoothing * raw_threat
-            + (1 - self.smoothing) * self._threat_smooth
+        # Optical flow Lucas-Kanade
+        next_pts, status, _ = cv2.calcOpticalFlowPyrLK(
+            self._prev_gray, gray, self._prev_pts, None, **LK_PARAMS
         )
 
-        threat_side = max_side if self._threat_smooth > 0.3 else None
+        if next_pts is None:
+            self._prev_gray = gray
+            return float(self._threat), self._last_side
 
-        return float(self._threat_smooth), threat_side
+        # Filtra só os pontos rastreados com sucesso
+        good_prev = self._prev_pts[status == 1]
+        good_next = next_pts[status == 1]
+
+        if len(good_prev) < 4:
+            self._prev_gray = gray
+            self._prev_pts  = cv2.goodFeaturesToTrack(
+                gray, mask=self._full_border_mask(h, w), **FEATURE_PARAMS
+            )
+            return float(self._threat), self._last_side
+
+        # Centro da tela (onde está o Katamari)
+        cx, cy = w / 2, h / 2
+
+        # Analisa cada vetor de flow
+        zone_scores = {z[4]: [] for z in ZONES}
+
+        for (px, py), (nx, ny) in zip(good_prev, good_next):
+            dx = nx - px
+            dy = ny - py
+            mag = np.sqrt(dx*dx + dy*dy)
+
+            if mag < self.min_magnitude:
+                continue
+
+            # Vetor do centro até o ponto
+            to_point_x = px - cx
+            to_point_y = py - cy
+            to_point_len = max(np.sqrt(to_point_x**2 + to_point_y**2), 1e-6)
+
+            # Produto escalar: flow alinhado com "para fora do centro" = looming
+            dot = (dx * to_point_x + dy * to_point_y) / to_point_len
+            looming_score = dot / max(mag, 1e-6)
+
+            # Classifica em qual zona está o ponto
+            pxn, pyn = px/w, py/h
+            for (xn, yn, wn, hn, name) in ZONES:
+                if xn <= pxn <= xn+wn and yn <= pyn <= yn+hn:
+                    zone_scores[name].append(looming_score)
+                    break
+
+        # Calcula ameaça por zona
+        zone_threats = {}
+        for name, scores in zone_scores.items():
+            if len(scores) < 3:
+                zone_threats[name] = 0.0
+                continue
+            # Fração de vetores apontando para fora (looming_score > 0)
+            looming_frac = np.mean(np.array(scores) > 0.3)
+            zone_threats[name] = float(looming_frac)
+
+        # Zona com maior ameaça
+        if not zone_threats or max(zone_threats.values()) < 0.01:
+            raw_threat = 0.0
+            side = None
+        else:
+            max_side    = max(zone_threats, key=zone_threats.get)
+            raw_threat  = min(zone_threats[max_side] / self.looming_threshold, 1.0)
+            side        = max_side if raw_threat > 0.3 else None
+
+        # EMA
+        self._threat    = self.smoothing * raw_threat + (1-self.smoothing) * self._threat
+        self._last_side = side if self._threat > 0.25 else None
+
+        # Atualiza para próximo frame
+        self._prev_gray = gray
+        # Re-detecta pontos periodicamente
+        if self._frame_n % (self.check_every * 8) == 0:
+            border_mask = self._full_border_mask(h, w)
+            self._prev_pts = cv2.goodFeaturesToTrack(
+                gray, mask=border_mask, **FEATURE_PARAMS
+            )
+        else:
+            self._prev_pts = good_next.reshape(-1, 1, 2)
+
+        return float(self._threat), self._last_side
 
     def reset(self):
-        self._threat_smooth = 0.0
+        self._prev_gray  = None
+        self._prev_pts   = None
+        self._threat     = 0.0
+        self._last_side  = None
+        self._frame_n    = 0

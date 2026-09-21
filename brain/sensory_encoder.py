@@ -60,12 +60,30 @@ class SensoryEncoder:
         self.top_n          = top_n
         self.attention_decay = attention_decay
 
+    def _z_weight(self, apparent_size: float) -> float:
+        """
+        Z-buffer visual — peso de profundidade baseado no tamanho aparente.
+
+        Não corta objetos — apenas amplifica os próximos e atenua os
+        distantes como multiplicador da atenção. Objetos distantes ainda
+        contribuem, mas com menos força.
+
+        Curva: raiz cúbica — comprime suavemente sem corte brusco.
+          size=0.01 → z=0.22   (distante, contribui pouco)
+          size=0.10 → z=0.46   (médio)
+          size=0.40 → z=0.74   (próximo)
+          size=1.00 → z=1.00   (muito próximo, domina)
+        """
+        size_signal = min(apparent_size * self.size_scale, 1.0)
+        return size_signal ** (1/3)
+
     def _saliency(self, s: VisualStimulus) -> float:
-        """Score de saliência — decide quais objetos entram no top-N."""
+        """Score de saliência com z-buffer — objetos próximos têm prioridade."""
         size_signal = min(s.apparent_size * self.size_scale, 1.0)
+        z = self._z_weight(s.apparent_size)
         return (
-            0.50 * (1.0 + self.vertical_bias * s.y) / (1.0 + self.vertical_bias) +
-            0.30 * size_signal +
+            0.45 * (1.0 + self.vertical_bias * s.y) / (1.0 + self.vertical_bias) +
+            0.35 * z +
             0.20 * s.contrast
         )
 
@@ -74,7 +92,8 @@ class SensoryEncoder:
         Retorna (left, center, right) ∈ [0, 1].
 
         Processa apenas os top-N estímulos mais salientes, com
-        peso decrescente por ranking (atenção seletiva).
+        peso decrescente por ranking (atenção seletiva) e
+        z-buffer visual baseado no tamanho aparente.
         """
         if not stimuli:
             return 0.0, 0.0, 0.0
@@ -87,18 +106,16 @@ class SensoryEncoder:
         norm = 1.0 + self.vertical_bias * self.w_proximity
 
         for rank, s in enumerate(focused):
-            # Peso de atenção decai por ranking
-            attention = self.attention_decay ** rank
-
+            attention       = self.attention_decay ** rank
             size_signal     = min(s.apparent_size * self.size_scale, 1.0)
             prox_signal     = 1.0 + self.vertical_bias * s.y
             contrast_signal = s.contrast
             vel_signal      = min(abs(s.velocity_x) + abs(s.velocity_y), 1.0)
 
             intensity = (
-                self.w_size      * size_signal     +
-                self.w_proximity * prox_signal     +
-                self.w_contrast  * contrast_signal +
+                self.w_size      * size_signal      +
+                self.w_proximity * prox_signal      +
+                self.w_contrast  * contrast_signal  +
                 self.w_velocity  * vel_signal
             ) / norm
 

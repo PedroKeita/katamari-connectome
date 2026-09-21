@@ -1,5 +1,4 @@
 """
-
 WebSocket server que transmite dados de spike em tempo real para o
 visualizador Three.js no browser.
 
@@ -69,8 +68,15 @@ class NeuralServer:
     def _run(self):
         try:
             import websockets
+            import logging as _logging
+            # Suprime logs verbosos do websockets
+            _logging.getLogger("websockets").setLevel(_logging.ERROR)
 
             async def handler(ws):
+                if len(self._clients) >= 2:
+                    try: await ws.close()
+                    except: pass
+                    return
                 self._clients.add(ws)
                 logger.info(f"[NeuralServer] cliente conectado ({len(self._clients)})")
                 try:
@@ -93,7 +99,7 @@ class NeuralServer:
                             except Exception:
                                 dead.add(ws)
                         self._clients -= dead
-                    await asyncio.sleep(1/30)   # 30 Hz
+                    await asyncio.sleep(1/15)   # 15 Hz — suficiente para o visualizador
 
             async def main():
                 async with websockets.serve(handler, "localhost", self.port):

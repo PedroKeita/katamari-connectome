@@ -1,6 +1,4 @@
 """
-main.py — Fly Brain Katamari  v0.5
-
 Arquitetura corrigida:
   - SensoryEncoder gera L/C/R (rápido, confiável — base do movimento)
   - FlyWire roda em thread separada com n_steps=30, atualiza a cada ~5 frames
@@ -26,7 +24,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-MAX_ITEMS_GUARD = 40
+MAX_ITEMS_GUARD = 60
 DATA_DIR = "data"
 
 
@@ -38,6 +36,8 @@ def parse_args():
     p.add_argument("--monitor",    type=int,   default=2)
     p.add_argument("--dopamine",   type=float, default=1.0)
     p.add_argument("--no-flywire", action="store_true")
+    p.add_argument("--escape", action="store_true",
+                   help="Ativa EscapeCircuit (wall detector + SHIFT+CTRL)")
     return p.parse_args()
 
 
@@ -188,10 +188,11 @@ def main():
     wall_detect  = WallDetector()
 
     # Estado do escape circuit
-    _escape_active     = False   # Giant Fiber disparou
-    _escape_frames     = 0       # frames restantes do quick turn
-    ESCAPE_HOLD_FRAMES = 9       # ~300ms a 30fps — duração do quick turn
-    ESCAPE_THRESHOLD   = 0.55    # threat_level para ativar o Giant Fiber
+    _escape_active     = False
+    _escape_frames     = 0
+    ESCAPE_HOLD_FRAMES = 9       # ~300ms a 30fps
+    STAGNATION_LIMIT   = 180     # frames sem coleta para ativar escape (~6s a 30fps)
+    _frames_since_col  = 0       # frames desde a última coleta
 
     dopamine              = args.dopamine
     focus_patience        = 0
@@ -255,6 +256,13 @@ def main():
 
     logger.info(f"Monitor={args.monitor}  FPS={args.fps}  dry-run={args.dry_run}")
 
+    if not args.dry_run:
+        logger.info("Clique na janela do Katamari nos próximos 4 segundos...")
+        for i in range(4, 0, -1):
+            logger.info(f"  Iniciando em {i}s...")
+            time.sleep(1)
+        logger.info("GO!")
+
     try:
         while not _stop_flag.is_set():
             t0 = time.time()
@@ -263,6 +271,7 @@ def main():
             frame_n += 1
 
             if paused_ui:
+                logger.info(f"STOP: paused_ui frame={frame_n}")
                 gamepad.reset()
                 if args.debug:
                     vis = frame.copy()
@@ -275,6 +284,7 @@ def main():
                 time.sleep(0.05); continue
 
             if pause_detect.check(frame):
+                logger.info(f"STOP: pause_detect ativado frame={frame_n}")
                 gamepad.reset()
                 col_detect.reset()
                 if args.debug:
@@ -291,6 +301,7 @@ def main():
 
             items_raw, _ = detect_items(frame)
             if len(items_raw) > MAX_ITEMS_GUARD:
+                logger.info(f"STOP: MAX_ITEMS_GUARD itens={len(items_raw)} frame={frame_n}")
                 gamepad.reset()
                 elapsed = time.time() - t0
                 if interval - elapsed > 0: time.sleep(interval - elapsed)
@@ -335,7 +346,7 @@ def main():
                 # O bias FlyWire ajusta sutilmente o dx
                 # bias > 0 = PAMs direitos mais ativos → empurra para direita
                 # bias < 0 = PAMs esquerdos mais ativos → empurra para esquerda
-                fw_bias_scaled = fw_bias * 0.3   # modulação suave (30%)
+                fw_bias_scaled = 0.0  # desativado — viés anatômico fêmea causa giro constante
             else:
                 fw_bias_scaled = 0.0
 
@@ -357,26 +368,32 @@ def main():
                 )
 
             # --- EscapeCircuit: LPLC2 → DNp01 → SHIFT+CTRL ---
-            # Detecta paredes/bordas escuras nas bordas da tela
-            threat_level, threat_side = wall_detect.detect(frame)
+            # Ativa quando há estagnação (sem coleta por STAGNATION_LIMIT frames)
+            # Biologicamente: baixa dopamina → sistema de escape assume controle
 
             escape_rate = 0.0
+
+            if just_collected:
+                _frames_since_col = 0
+            else:
+                _frames_since_col += 1
+
             if _escape_active:
-                # Giant Fiber já disparou — mantém SHIFT+CTRL por ESCAPE_HOLD_FRAMES
                 _escape_frames -= 1
                 if _escape_frames <= 0:
                     _escape_active = False
+                    _frames_since_col = 0   # reseta contagem após escape
                     gamepad.release_escape()
-                    logger.info(f"Escape: Giant Fiber desativado")
+                    logger.info("Escape: Giant Fiber desativado — nova direção")
                 escape_rate = 0.8
-            elif threat_level >= ESCAPE_THRESHOLD:
-                # LPLC2 detectou looming → DNp01 dispara → quick turn
+            elif args.escape and _frames_since_col >= STAGNATION_LIMIT:
+                # DNp01 dispara — quick turn
                 _escape_active = True
                 _escape_frames = ESCAPE_HOLD_FRAMES
                 gamepad.trigger_escape()
                 logger.info(
-                    f"ESCAPE! threat={threat_level:.2f} side={threat_side} "
-                    f"frame={frame_n}"
+                    f"ESCAPE! estagnação={_frames_since_col} frames "
+                    f"sem coleta → Giant Fiber ativado"
                 )
                 escape_rate = 1.0
 
@@ -384,7 +401,7 @@ def main():
 
             neural_server.push({
                 "escape_active": _escape_active,
-                "threat_level":  round(threat_level, 3),
+                "threat_level":  round(float(_frames_since_col) / STAGNATION_LIMIT, 3),
                 "fw_bias":      round(float(fw_bias), 4),
                 "left":         round(float(left),    3),
                 "center":       round(float(center),  3),

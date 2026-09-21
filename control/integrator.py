@@ -52,11 +52,13 @@ class CircuitIntegrator:
     ) -> ControlOutput:
 
         # --------------------------------------------------
-        # Sem estímulo nenhum → para
+        # Sem estímulo → movimento exploratório basal
+        # A mosca real nunca para completamente — quando não
+        # há recompensa visível, mantém exploração aleatória.
         # --------------------------------------------------
         total = left_input + center_input + right_input
         if total < self.dead_zone:
-            return ControlOutput(x=0.0, y=0.0, magnitude=0.0)
+            return ControlOutput(x=0.0, y=-1.0, magnitude=0.3)
 
         # --------------------------------------------------
         # DIREÇÃO X: baseada nos inputs contínuos

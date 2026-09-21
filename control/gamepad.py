@@ -1,6 +1,4 @@
 """
-control/gamepad.py  —  Keyboard controller (substitui vgamepad)
-
 Usa pynput para simular teclas WASD no Katamari Damacy REROLL.
 
 Mapeamento:
@@ -25,11 +23,17 @@ logger = logging.getLogger(__name__)
 # Limiar para considerar virada (0.0–1.0)
 TURN_DEAD_ZONE = 0.25
 
-# Teclas padrão (WASD) — troque aqui se o jogo usar setas
+# Stick esquerdo
 KEY_FORWARD = 'w'
 KEY_BACK    = 's'
 KEY_LEFT    = 'a'
 KEY_RIGHT   = 'd'
+
+# Stick direito (Katamari precisa dos dois sticks para rolar)
+KEY_FORWARD2 = 'i'
+KEY_BACK2    = 'k'
+KEY_LEFT2    = 'j'
+KEY_RIGHT2   = 'l'
 
 
 class GamepadController:
@@ -42,7 +46,8 @@ class GamepadController:
 
     def __init__(self, dry_run: bool = False):
         self.dry_run  = dry_run
-        self._pressed = set()   # teclas atualmente seguradas
+        self._pressed     = set()   # teclas atualmente seguradas
+        self._escape_held = False   # SHIFT+CTRL pressionados
         self._kb      = None
 
         if not dry_run:
@@ -71,17 +76,21 @@ class GamepadController:
 
         desired = set()
 
-        # Frente — o fly sempre vai para frente quando há estímulo
+        # Stick esquerdo
         if output.y <= 0:
             desired.add(KEY_FORWARD)
+            desired.add(KEY_FORWARD2)
         else:
             desired.add(KEY_BACK)
+            desired.add(KEY_BACK2)
 
-        # Virada lateral
+        # Virada lateral — ambos os sticks viram juntos
         if output.x < -TURN_DEAD_ZONE:
             desired.add(KEY_LEFT)
+            desired.add(KEY_LEFT2)
         elif output.x > TURN_DEAD_ZONE:
             desired.add(KEY_RIGHT)
+            desired.add(KEY_RIGHT2)
 
         self._apply(desired)
 
@@ -93,6 +102,8 @@ class GamepadController:
 
     def reset(self) -> None:
         """Solta todas as teclas."""
+        if self._escape_held:
+            self.release_escape()
         self._release_all()
 
     def close(self) -> None:
@@ -113,8 +124,7 @@ class GamepadController:
             from pynput.keyboard import Key
             self._kb.press(Key.shift)
             self._kb.press(Key.ctrl)
-            self._pressed.add("SHIFT")
-            self._pressed.add("CTRL")
+            self._escape_held = True
         except Exception as e:
             logger.debug(f"trigger_escape erro: {e}")
 
@@ -128,8 +138,7 @@ class GamepadController:
             from pynput.keyboard import Key
             self._kb.release(Key.ctrl)
             self._kb.release(Key.shift)
-            self._pressed.discard("SHIFT")
-            self._pressed.discard("CTRL")
+            self._escape_held = False
         except Exception as e:
             logger.debug(f"release_escape erro: {e}")
 
