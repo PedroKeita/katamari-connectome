@@ -1,236 +1,95 @@
 """
-O teclado do Katamari simula os dois analógicos do controle.
+control/gamepad.py  —  Keyboard controller (substitui vgamepad)
 
-Mapeamento padrão do jogo:
+Usa pynput para simular teclas WASD no Katamari Damacy REROLL.
 
-    Stick esquerdo:  W A S D
-    Stick direito:   I J K L
+Mapeamento:
+    ControlOutput.x < -dead   → A  (esquerda)
+    ControlOutput.x >  dead   → D  (direita)
+    ControlOutput.y < 0       → W  (frente) — o fly sempre vai para frente
+    magnitude == 0            → solta tudo
 
-Movimentos:
+O Katamari não tem velocidade analógica via teclado, então a magnitude
+é usada para controlar duty-cycle: com magnitude baixa, alterna
+press/release em ciclos curtos para simular movimento mais lento.
 
-    Frente          -> W + I
-    Trás            -> S + K
-    Esquerda        -> A + J
-    Direita         -> D + L
-
-    Frente + direita -> W + I + D + L
-    Frente + esquerda -> W + I + A + J
-
-O controlador recebe um ControlOutput:
-
-    output.x
-        < -dead -> esquerda
-        >  dead -> direita
-
-    output.y
-        <  0 -> frente
-        >  0 -> trás
-
-    magnitude
-        próximo de 0 -> nenhuma tecla
-
-dry_run=True:
-    não pressiona teclas, apenas registra o comando.
+dry_run=True → não pressiona nada, só loga.
 """
 
 import logging
-
-from pynput.keyboard import Controller
+import time
+import threading
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Configuração
-# ---------------------------------------------------------------------------
-
+# Limiar para considerar virada (0.0–1.0)
 TURN_DEAD_ZONE = 0.25
-MOVEMENT_DEAD_ZONE = 0.10
 
-
-# ---------------------------------------------------------------------------
-# Katamari — dois sticks
-# ---------------------------------------------------------------------------
-
-# Stick esquerdo
-LEFT_FORWARD = "w"
-LEFT_BACK = "s"
-LEFT_LEFT = "a"
-LEFT_RIGHT = "d"
-
-# Stick direito
-RIGHT_FORWARD = "i"
-RIGHT_BACK = "k"
-RIGHT_LEFT = "j"
-RIGHT_RIGHT = "l"
+# Teclas padrão (WASD) — troque aqui se o jogo usar setas
+KEY_FORWARD = 'w'
+KEY_BACK    = 's'
+KEY_LEFT    = 'a'
+KEY_RIGHT   = 'd'
 
 
 class GamepadController:
     """
-    Controlador de teclado para Katamari Damacy REROLL.
+    Envia teclas WASD com base num ControlOutput.
 
-    O jogo espera que os dois conjuntos de teclas sejam usados
-    simultaneamente para movimentar o Katamari.
-
-    Exemplo:
-
-        output.x = 0
-        output.y = -1
-
-    resulta em:
-
-        W + I
-
-    que faz o Katamari andar para frente.
+    Mantém o estado das teclas pressionadas para evitar
+    spam de press/release a cada frame.
     """
 
     def __init__(self, dry_run: bool = False):
-        self.dry_run = dry_run
-
-        # Teclas atualmente pressionadas
-        self._pressed = set()
-
-        self._kb = None
+        self.dry_run  = dry_run
+        self._pressed = set()   # teclas atualmente seguradas
+        self._kb      = None
 
         if not dry_run:
             try:
+                from pynput.keyboard import Controller
                 self._kb = Controller()
-
-                logger.info(
-                    "[Keyboard] Katamari keyboard controller pronto."
-                )
-
+                logger.info("[Keyboard] pynput Controller pronto.")
             except Exception as e:
-                logger.error(
-                    f"[Keyboard] Falha ao iniciar pynput: {e}"
-                )
-                logger.error(
-                    "Instale com: pip install pynput"
-                )
+                logger.error(f"[Keyboard] Falha ao iniciar pynput: {e}")
+                logger.error("  Instale: pip install pynput")
                 raise
-
         else:
-            logger.info(
-                "[Keyboard] Modo dry-run — nenhuma tecla será pressionada."
-            )
+            logger.info("[Keyboard] Modo dry-run — nenhuma tecla será pressionada.")
 
     # ------------------------------------------------------------------
     # API pública
     # ------------------------------------------------------------------
 
     def send(self, output) -> None:
-        """
-        Converte ControlOutput em movimento do Katamari.
-
-        x:
-            negativo = esquerda
-            positivo = direita
-
-        y:
-            negativo = frente
-            positivo = trás
-        """
-
-        # --------------------------------------------------------------
-        # Sem movimento
-        # --------------------------------------------------------------
+        """Recebe ControlOutput e ajusta as teclas pressionadas."""
 
         if output.magnitude < 0.01:
+            # Sem estímulo — solta tudo
             self._release_all()
             return
 
         desired = set()
 
-        x = output.x
-        y = output.y
+        # Frente — o fly sempre vai para frente quando há estímulo
+        if output.y <= 0:
+            desired.add(KEY_FORWARD)
+        else:
+            desired.add(KEY_BACK)
 
-        # --------------------------------------------------------------
-        # Eixo vertical
-        #
-        # Os dois "sticks" precisam receber o mesmo comando.
-        # --------------------------------------------------------------
-
-        if y < -MOVEMENT_DEAD_ZONE:
-
-            # Frente
-            desired.add(LEFT_FORWARD)
-            desired.add(RIGHT_FORWARD)
-
-        elif y > MOVEMENT_DEAD_ZONE:
-
-            # Trás
-            desired.add(LEFT_BACK)
-            desired.add(RIGHT_BACK)
-
-        # --------------------------------------------------------------
-        # Eixo horizontal
-        # --------------------------------------------------------------
-
-        if x < -TURN_DEAD_ZONE:
-
-            # Esquerda
-            desired.add(LEFT_LEFT)
-            desired.add(RIGHT_LEFT)
-
-        elif x > TURN_DEAD_ZONE:
-
-            # Direita
-            desired.add(LEFT_RIGHT)
-            desired.add(RIGHT_RIGHT)
-
-        # --------------------------------------------------------------
-        # Aplica as teclas
-        # --------------------------------------------------------------
+        # Virada lateral
+        if output.x < -TURN_DEAD_ZONE:
+            desired.add(KEY_LEFT)
+        elif output.x > TURN_DEAD_ZONE:
+            desired.add(KEY_RIGHT)
 
         self._apply(desired)
 
         if self.dry_run:
             logger.debug(
-                "[dry-run] "
-                f"teclas={sorted(desired)} "
-                f"x={x:+.2f} "
-                f"y={y:+.2f} "
-                f"mag={output.magnitude:.2f}"
+                f"[dry-run] teclas={sorted(desired)}"
+                f"  x={output.x:+.2f}  mag={output.magnitude:.2f}"
             )
-
-    # ------------------------------------------------------------------
-    # Movimentos especiais
-    # ------------------------------------------------------------------
-
-    def quick_turn_right(self):
-        """
-        Faz o quick turn usando a combinação:
-
-            W + K
-
-        No Katamari, isso movimenta os dois sticks
-        em direções opostas.
-        """
-
-        desired = {
-            LEFT_FORWARD,
-            RIGHT_BACK,
-        }
-
-        self._apply(desired)
-
-    def quick_turn_left(self):
-        """
-        Faz o quick turn na direção oposta:
-
-            S + I
-        """
-
-        desired = {
-            LEFT_BACK,
-            RIGHT_FORWARD,
-        }
-
-        self._apply(desired)
-
-    def release(self):
-        """Solta todas as teclas."""
-        self._release_all()
 
     def reset(self) -> None:
         """Solta todas as teclas."""
@@ -239,59 +98,69 @@ class GamepadController:
     def close(self) -> None:
         self.reset()
 
+    def trigger_escape(self) -> None:
+        """
+        Giant Fiber disparou — executa quick turn via SHIFT+CTRL.
+
+        No Katamari Damacy REROLL, SHIFT+CTRL realiza um giro rápido
+        de 180°, exatamente como a mosca real faz ao detectar looming.
+        """
+        if self.dry_run:
+            return
+        if not self._kb:
+            return
+        try:
+            from pynput.keyboard import Key
+            self._kb.press(Key.shift)
+            self._kb.press(Key.ctrl)
+            self._pressed.add("SHIFT")
+            self._pressed.add("CTRL")
+        except Exception as e:
+            logger.debug(f"trigger_escape erro: {e}")
+
+    def release_escape(self) -> None:
+        """Solta SHIFT+CTRL após o quick turn."""
+        if self.dry_run:
+            return
+        if not self._kb:
+            return
+        try:
+            from pynput.keyboard import Key
+            self._kb.release(Key.ctrl)
+            self._kb.release(Key.shift)
+            self._pressed.discard("SHIFT")
+            self._pressed.discard("CTRL")
+        except Exception as e:
+            logger.debug(f"release_escape erro: {e}")
+
     # ------------------------------------------------------------------
     # Internos
     # ------------------------------------------------------------------
 
     def _press(self, key: str):
-
         if key in self._pressed:
             return
-
         self._pressed.add(key)
-
         if not self.dry_run and self._kb:
             self._kb.press(key)
 
     def _release(self, key: str):
-
         if key not in self._pressed:
             return
-
         self._pressed.discard(key)
-
         if not self.dry_run and self._kb:
             self._kb.release(key)
 
     def _apply(self, desired: set):
-
-        """
-        Faz a transição entre o estado atual e o estado desejado.
-
-        Exemplo:
-
-            atual:
-                W + I
-
-            desejado:
-                W + I + D + L
-
-        Apenas D e L serão pressionadas.
-        """
-
-        # Solta teclas que não são mais necessárias
+        """Pressiona as teclas desejadas e solta as que não estão mais."""
+        # Solta o que não é mais necessário
         for key in list(self._pressed):
-
             if key not in desired:
                 self._release(key)
-
-        # Pressiona novas teclas
+        # Pressiona o que falta
         for key in desired:
-
-            if key not in self._pressed:
-                self._press(key)
+            self._press(key)
 
     def _release_all(self):
-
         for key in list(self._pressed):
             self._release(key)

@@ -1,4 +1,6 @@
 """
+main.py — Fly Brain Katamari  v0.5
+
 Arquitetura corrigida:
   - SensoryEncoder gera L/C/R (rápido, confiável — base do movimento)
   - FlyWire roda em thread separada com n_steps=30, atualiza a cada ~5 frames
@@ -152,6 +154,7 @@ def main():
     from vision.detect         import detect_items, draw_detections, CollectionDetector
     from vision.visual_field   import items_to_visual_field
     from vision.pause_detector import PauseDetector
+    from vision.wall_detector  import WallDetector
     from brain.sensory_encoder import SensoryEncoder
     from brain.reward          import RewardCircuit
     from control.integrator    import CircuitIntegrator
@@ -182,6 +185,13 @@ def main():
     gamepad      = GamepadController(dry_run=args.dry_run)
     col_detect   = CollectionDetector()
     pause_detect = PauseDetector()
+    wall_detect  = WallDetector()
+
+    # Estado do escape circuit
+    _escape_active     = False   # Giant Fiber disparou
+    _escape_frames     = 0       # frames restantes do quick turn
+    ESCAPE_HOLD_FRAMES = 9       # ~300ms a 30fps — duração do quick turn
+    ESCAPE_THRESHOLD   = 0.55    # threat_level para ativar o Giant Fiber
 
     dopamine              = args.dopamine
     focus_patience        = 0
@@ -239,7 +249,6 @@ def main():
             else:
                 _win_x, _win_y, _win_w, _win_h = 80, 80, 1280, 720
 
-        
         cv2.namedWindow("Fly Brain v0.5", cv2.WINDOW_NORMAL)
         cv2.resizeWindow("Fly Brain v0.5", _win_w, _win_h)
         cv2.moveWindow("Fly Brain v0.5", _win_x, _win_y)
@@ -347,9 +356,35 @@ def main():
                     magnitude=output.magnitude
                 )
 
+            # --- EscapeCircuit: LPLC2 → DNp01 → SHIFT+CTRL ---
+            # Detecta paredes/bordas escuras nas bordas da tela
+            threat_level, threat_side = wall_detect.detect(frame)
+
+            escape_rate = 0.0
+            if _escape_active:
+                # Giant Fiber já disparou — mantém SHIFT+CTRL por ESCAPE_HOLD_FRAMES
+                _escape_frames -= 1
+                if _escape_frames <= 0:
+                    _escape_active = False
+                    gamepad.release_escape()
+                    logger.info(f"Escape: Giant Fiber desativado")
+                escape_rate = 0.8
+            elif threat_level >= ESCAPE_THRESHOLD:
+                # LPLC2 detectou looming → DNp01 dispara → quick turn
+                _escape_active = True
+                _escape_frames = ESCAPE_HOLD_FRAMES
+                gamepad.trigger_escape()
+                logger.info(
+                    f"ESCAPE! threat={threat_level:.2f} side={threat_side} "
+                    f"frame={frame_n}"
+                )
+                escape_rate = 1.0
+
             gamepad.send(output)
 
             neural_server.push({
+                "escape_active": _escape_active,
+                "threat_level":  round(threat_level, 3),
                 "fw_bias":      round(float(fw_bias), 4),
                 "left":         round(float(left),    3),
                 "center":       round(float(center),  3),
@@ -359,7 +394,7 @@ def main():
                 "pressed_keys": list(gamepad._pressed),
                 "circuits": {
                     "reward": {"rate": round(abs(float(fw_bias))*0.05, 4)},
-                    "escape": {"rate": 0.0},
+                    "escape": {"rate": round(escape_rate, 3)},
                     "orient": {"rate": round(abs(float(fw_bias))*0.02, 4)},
                 },
             })
