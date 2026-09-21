@@ -1,4 +1,6 @@
 """
+brain/sensory_encoder.py
+
 SensoryEncoder — única camada que traduz o campo visual em
 sinais neurais L/C/R para os circuitos.
 

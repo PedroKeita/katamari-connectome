@@ -1,4 +1,5 @@
 """
+vision/detect.py  —  Katamari item detector (v4.1)
 
 CollectionDetector reescrito com sinal dual confiável:
   dark_ratio  > 0.004  → círculo escuro de overlay presente

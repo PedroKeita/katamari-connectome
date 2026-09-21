@@ -201,6 +201,8 @@ def main():
     total_collected       = 0
     last_collection_frame = -999
     fw_bias               = 0.0
+    _fw_bias_baseline     = 0.0   # média móvel para cancelar offset anatômico constante
+    _FW_BIAS_ALPHA        = 0.02  # tau ~50 frames (~1.7s a 30fps)
 
     frame_n   = 0
     fps_t     = time.time()
@@ -343,10 +345,11 @@ def main():
                 fw_runner.update_input(left, right)
                 fw_bias = fw_runner.lateral_bias
 
-                # O bias FlyWire ajusta sutilmente o dx
-                # bias > 0 = PAMs direitos mais ativos → empurra para direita
-                # bias < 0 = PAMs esquerdos mais ativos → empurra para esquerda
-                fw_bias_scaled = 0.0  # desativado — viés anatômico fêmea causa giro constante
+                _fw_bias_baseline += _FW_BIAS_ALPHA * (fw_bias - _fw_bias_baseline)
+                fw_bias_centered   = fw_bias - _fw_bias_baseline
+
+                # Escala conservadora: máx ±0.3 no eixo X
+                fw_bias_scaled = float(np.clip(fw_bias_centered * 0.5, -0.3, 0.3))
             else:
                 fw_bias_scaled = 0.0
 

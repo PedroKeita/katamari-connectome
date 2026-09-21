@@ -3,3 +3,6 @@ opencv-python
 numpy
 Pillow
 pynput
+scipy
+pandas
+websockets
