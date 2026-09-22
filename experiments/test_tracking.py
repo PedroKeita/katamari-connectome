@@ -2,7 +2,7 @@ import time
 import cv2
 
 from vision.capture import ScreenCapture
-from vision.object_detection import detect_objects
+from vision.detection.objects import detect_objects
 from vision.tracking import ObjectTracker
 
 

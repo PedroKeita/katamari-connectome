@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fly Brain · Katamari</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d1117;--border:#1e2d3d;--green:#4caf87;
+  --green-dim:#1e4a35;--green-bright:#7dd4b0;
+  --text-dim:#1e3a2a;--white:#c9d1d9;
+}
+body{
+  background:var(--bg);color:var(--white);
+  font-family:'Courier New',monospace;
+  width:100vw;height:100vh;overflow:hidden;
+  display:grid;
+  grid-template-rows:32px 1fr 32px;
+  grid-template-columns:1fr 1fr;
+}
+#header{
+  grid-column:1/3;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;font-size:11px;color:var(--text-dim);letter-spacing:1px;
+}
+#header .title{color:var(--green);letter-spacing:2px}
+#ws{font-size:10px;letter-spacing:1px;color:#4a3030}
+#ws.on{color:var(--green)}
+.panel{position:relative;border-right:1px solid var(--border);overflow:hidden}
+.panel:last-child{border-right:none}
+.panel-label{
+  position:absolute;top:0;left:0;right:0;
+  padding:7px 14px;font-size:9px;color:var(--text-dim);letter-spacing:2px;
+  border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;
+  z-index:10;background:rgba(13,17,23,0.9);
+}
+.panel-label .r{color:var(--green-dim)}
+
+/* PAINEL VÍDEO */
+#panel-video{grid-column:1;grid-row:2}
+#gameplay-video{
+  width:100%;height:100%;object-fit:cover;display:block;
+  padding-top:28px;opacity:0.88;
+}
+
+/* CÉREBRO OVERLAY */
+#brain-overlay{
+  position:absolute;bottom:0;right:0;
+  width:280px;height:230px;
+  border-top:1px solid var(--border);border-left:1px solid var(--border);
+  background:rgba(8,12,18,0.82);z-index:5;
+}
+#brain-canvas{width:100%;height:100%;display:block}
+#brain-label{
+  position:absolute;top:0;left:0;right:0;
+  padding:5px 10px;font-size:9px;color:var(--text-dim);letter-spacing:2px;
+  border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;
+}
+#active-count{position:absolute;bottom:6px;left:10px;font-size:9px;color:var(--green-dim)}
+
+/* PAINEL MOSCA */
+#panel-fly{
+  grid-column:2;grid-row:2;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:20px;padding:36px 20px 44px;
+}
+#fly-svg{filter:drop-shadow(0 0 8px #1e4a3544)}
+#keyboard{display:flex;flex-direction:column;gap:6px;align-items:center}
+.kb-row{display:flex;gap:6px}
+.key{
+  width:52px;height:52px;border-radius:6px;
+  background:#080e14;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:var(--text-dim);
+  transition:all 0.07s;position:relative;
+}
+.key::after{
+  content:'';position:absolute;bottom:5px;left:50%;
+  transform:translateX(-50%);
+  width:26px;height:2px;border-radius:1px;
+  background:var(--border);transition:background 0.07s;
+}
+.key.on{
+  background:#0a1e14;border-color:var(--green);color:var(--green-bright);
+  box-shadow:0 0 14px #4caf8722;transform:translateY(2px);
+}
+.key.on::after{background:#4caf8744}
+.key.gap{visibility:hidden}
+.kb-labels{
+  width:100%;display:flex;justify-content:space-around;
+  font-size:9px;color:var(--text-dim);letter-spacing:2px;margin-top:2px;
+}
+#bias-wrap{width:100%;padding:0 8px}
+#bias-lbl{font-size:9px;color:var(--text-dim);letter-spacing:2px;margin-bottom:5px;text-align:center}
+#bias-track{height:3px;background:#080e14;border-radius:2px;position:relative}
+#bias-mid{position:absolute;left:50%;top:-3px;width:1px;height:9px;background:var(--border)}
+#bias-fill{position:absolute;top:0;height:3px;border-radius:2px;transition:all .1s}
+#fly-stats{
+  position:absolute;bottom:40px;left:14px;
+  font-size:10px;line-height:2.1;color:var(--text-dim);
+}
+#fly-stats .v{color:var(--green);margin-left:4px}
+#footer{
+  grid-column:1/3;border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:28px;
+  padding:0 16px;font-size:10px;color:var(--text-dim);
+}
+#footer b{color:var(--green)}
+#flash{
+  position:fixed;top:50%;left:25%;transform:translate(-50%,-50%);
+  font-size:20px;font-weight:bold;color:var(--green-bright);
+  text-shadow:0 0 20px var(--green);opacity:0;
+  pointer-events:none;letter-spacing:4px;white-space:nowrap;z-index:99;
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <span class="title">FLY BRAIN · KATAMARI DAMACY</span>
+    <span style="margin-left:20px;font-size:9px;color:#1e3a2a">
+      FlyWire v783 · 22,667 neurons · 59,959 synapses · no training · no RL
+    </span>
+  </div>
+  <div id="ws">● DISCONNECTED</div>
+</div>
+
+<div class="panel" id="panel-video">
+  <div class="panel-label">
+    <span>01 / GAME</span>
+    <span class="r">Katamari Damacy REROLL · FlyWire control</span>
+  </div>
+  <video id="gameplay-video" autoplay loop muted playsinline>
+    <source src="media/gameplay.mp4" type="video/mp4">
+  </video>
+  <div id="brain-overlay">
+    <div id="brain-label">
+      <span>04 / BRAIN ACTIVITY</span>
+      <span style="color:var(--green-dim)">drag to rotate</span>
+    </div>
+    <canvas id="brain-canvas"></canvas>
+    <div id="active-count">0 recently active</div>
+  </div>
+</div>
+
+<div class="panel" id="panel-fly">
+  <div class="panel-label">
+    <span>03 / KEYBOARD OUTPUT</span>
+    <span class="r">Flybody anatomical rig</span>
+  </div>
+  <svg id="fly-svg" width="200" height="130" viewBox="0 0 200 130">
+    <ellipse id="wl" cx="58" cy="54" rx="50" ry="20"
+      fill="rgba(76,175,135,0.07)" stroke="#2d6e52" stroke-width="0.8"
+      transform="rotate(-22,58,54)"/>
+    <ellipse id="wr" cx="142" cy="54" rx="50" ry="20"
+      fill="rgba(76,175,135,0.07)" stroke="#2d6e52" stroke-width="0.8"
+      transform="rotate(22,142,54)"/>
+    <ellipse cx="100" cy="90" rx="10" ry="24" fill="#0e1e14" stroke="#1a3020" stroke-width="0.8"/>
+    <line x1="91" y1="80" x2="109" y2="80" stroke="#1a3020" stroke-width="0.6"/>
+    <line x1="90" y1="90" x2="110" y2="90" stroke="#1a3020" stroke-width="0.6"/>
+    <line x1="91" y1="100" x2="109" y2="100" stroke="#1a3020" stroke-width="0.6"/>
+    <ellipse cx="100" cy="63" rx="14" ry="17" fill="#122018" stroke="#1e3028" stroke-width="0.8"/>
+    <circle cx="100" cy="42" r="12" fill="#122018" stroke="#1e3028" stroke-width="0.8"/>
+    <ellipse cx="93" cy="40" rx="5" ry="4.2" fill="#1e5c3a" opacity="0.95"/>
+    <ellipse cx="107" cy="40" rx="5" ry="4.2" fill="#1e5c3a" opacity="0.95"/>
+    <line x1="96" y1="31" x2="88" y2="21" stroke="#1a3020" stroke-width="1"/>
+    <circle cx="87" cy="20" r="1.8" fill="#2d6e52"/>
+    <line x1="104" y1="31" x2="112" y2="21" stroke="#1a3020" stroke-width="1"/>
+    <circle cx="113" cy="20" r="1.8" fill="#2d6e52"/>
+    <g stroke="#122018" stroke-width="0.9" fill="none">
+      <polyline points="88,65 72,74 63,83"/>
+      <polyline points="86,72 68,80 60,89"/>
+      <polyline points="88,78 72,87 66,98"/>
+      <polyline points="112,65 128,74 137,83"/>
+      <polyline points="114,72 132,80 140,89"/>
+      <polyline points="112,78 128,87 134,98"/>
+    </g>
+  </svg>
+  <div id="keyboard">
+    <div class="kb-row">
+      <div class="key gap"></div>
+      <div class="key" id="k-w">W</div>
+      <div class="key gap"></div>
+      <div class="key gap"></div>
+      <div class="key" id="k-i">I</div>
+      <div class="key gap"></div>
+    </div>
+    <div class="kb-row">
+      <div class="key" id="k-a">A</div>
+      <div class="key" id="k-s">S</div>
+      <div class="key" id="k-d">D</div>
+      <div class="key" id="k-j">J</div>
+      <div class="key" id="k-k">K</div>
+      <div class="key" id="k-l">L</div>
+    </div>
+    <div class="kb-labels"><span>LEFT STICK</span><span>RIGHT STICK</span></div>
+  </div>
+  <div id="bias-wrap">
+    <div id="bias-lbl">LATERAL BIAS — MUSHROOM BODY</div>
+    <div id="bias-track">
+      <div id="bias-mid"></div>
+      <div id="bias-fill"></div>
+    </div>
+  </div>
+  <div id="fly-stats">
+    <div>L / C / R<span class="v" id="s-lcr">—</span></div>
+    <div>fw_bias<span class="v" id="s-bias">—</span></div>
+    <div>coletas<span class="v" id="s-col">0</span></div>
+  </div>
+</div>
+
+<div id="footer">
+  <div>MAG <b id="f-mag">0.00</b></div>
+  <div>fw_bias <b id="f-bias">+0.000</b></div>
+  <div>mode <b>FlyWire v783 · biological</b></div>
+  <div style="margin-left:auto;color:#1e3a2a">drag brain to rotate</div>
+</div>
+<div id="flash"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ================================================================
+// ESTADO GLOBAL — sempre animado, nunca parado
+// ================================================================
+let state = {
+  fw_bias:0, left:0, center:0, right:0, mag:0, collected:0,
+  pressed_keys:[],
+  circuits:{ reward:{rate:0.02}, escape:{rate:0}, orient:{rate:0.01} }
+};
+
+// ================================================================
+// THREE.JS — BRAIN
+// ================================================================
+const BC  = document.getElementById('brain-canvas');
+const ren = new THREE.WebGLRenderer({canvas:BC,antialias:true,alpha:true,premultipliedAlpha:false});
+ren.setClearColor(0,0);
+ren.setPixelRatio(Math.min(devicePixelRatio,2));
+
+const scene  = new THREE.Scene();
+const cam    = new THREE.PerspectiveCamera(50,1,0.1,1000);
+cam.position.set(0,0,110);
+cam.lookAt(0,0,0);
+
+function sRNG(s){return()=>{s=Math.imul(s^s>>>15,s|1);s^=s+Math.imul(s^s>>>7,s|61);return((s^s>>>14)>>>0)/2**32;};}
+
+const rng0=sRNG(0xc0ffee);
+const neurons=[];
+function cluster(cx,cy,cz,rx,ry,rz,n,ci){
+  for(let i=0;i<n;i++){
+    const u=rng0(),v=rng0(),w=rng0();
+    const r=Math.cbrt(w)*.97,th=Math.acos(2*u-1),ph=2*Math.PI*v;
+    neurons.push({
+      x:cx+rx*r*Math.sin(th)*Math.cos(ph),
+      y:cy+ry*r*Math.cos(th),
+      z:cz+rz*r*Math.sin(th)*Math.sin(ph),
+      ci, base:.15+rng0()*.12
+    });
+  }
+}
+cluster(-18,4,0,20,17,13,700,'R');
+cluster( 18,4,0,20,17,13,700,'R');
+cluster(-11,-10,6,7,5,5,150,'R');
+cluster( 11,-10,6,7,5,5,150,'R');
+cluster(  0,-24,0,5,13,5,200,'O');
+cluster(  0,-37,0,4, 7,4, 80,'O');
+cluster(-44, 2,0,7,13,5, 60,'E');
+cluster( 44, 2,0,7,13,5, 60,'E');
+
+const NN=neurons.length;
+const pos=new Float32Array(NN*3),col=new Float32Array(NN*3),sz=new Float32Array(NN);
+const CR=new THREE.Color('#7dd4b0'),CE=new THREE.Color('#a0e8c8'),CO=new THREE.Color('#5aad88');
+neurons.forEach((n,i)=>{
+  pos[i*3]=n.x;pos[i*3+1]=n.y;pos[i*3+2]=n.z;
+  const c=n.ci==='E'?CE:n.ci==='O'?CO:CR;
+  col[i*3]=c.r*n.base;col[i*3+1]=c.g*n.base;col[i*3+2]=c.b*n.base;
+  sz[i]=1.6;
+});
+const geo=new THREE.BufferGeometry();
+geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+geo.setAttribute('pColor',  new THREE.BufferAttribute(col,3));
+geo.setAttribute('pSize',   new THREE.BufferAttribute(sz, 1));
+const mat=new THREE.ShaderMaterial({
+  vertexShader:`attribute float pSize;attribute vec3 pColor;varying vec3 vC;
+    void main(){vC=pColor;vec4 mv=modelViewMatrix*vec4(position,1.);
+    gl_PointSize=pSize*(280./-mv.z);gl_Position=projectionMatrix*mv;}`,
+  fragmentShader:`varying vec3 vC;
+    void main(){float d=length(gl_PointCoord-.5)*2.;if(d>1.)discard;
+    gl_FragColor=vec4(vC,(1.-d*d)*1.8);}`,
+  transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+});
+const pts=new THREE.Points(geo,mat);
+scene.add(pts);
+
+function resizeBrain(){
+  const el=document.getElementById('brain-overlay');
+  const w=el.clientWidth,h=Math.max(el.clientHeight-28,1);
+  ren.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();
+}
+resizeBrain();
+window.addEventListener('resize',resizeBrain);
+
+let drag=false,lx=0,ly=0,rotX=0,rotY=0,autoY=0;
+BC.addEventListener('mousedown',e=>{drag=true;lx=e.clientX;ly=e.clientY;});
+window.addEventListener('mouseup',()=>drag=false);
+window.addEventListener('mousemove',e=>{
+  if(!drag)return;
+  rotY+=(e.clientX-lx)*.01;rotX+=(e.clientY-ly)*.006;
+  rotX=Math.max(-1.2,Math.min(1.2,rotX));lx=e.clientX;ly=e.clientY;
+});
+
+// ================================================================
+// LOOP DE ANIMAÇÃO — SEMPRE RODA
+// ================================================================
+let t=0,prevCol=0,flashTimer=0,activeCount=0;
+
+function updateNeurons(){
+  const bias=state.fw_bias||0;
+  const rR=state.circuits?.reward?.rate||0;
+  const rE=state.circuits?.escape?.rate||0;
+  const rO=state.circuits?.orient?.rate||0;
+  const pulse=.5+.5*Math.sin(t*3.5);
+  const rng2=sRNG(Math.floor(t*18)&0xfffff);
+  const bL=Math.max(0,-bias),bR=Math.max(0,bias);
+  let active=0;
+  neurons.forEach((n,i)=>{
+    let rate,c;
+    if(n.ci==='R'){rate=rR*6+(n.x>0?bR:bL)*.8;c=CR;}
+    else if(n.ci==='E'){rate=rE*6;c=CE;}
+    else{rate=rO*5+.01;c=CO;}
+    const on=rng2()<rate;
+    const b=on?(n.base+(.9+.1*pulse)*Math.min(rate*2,1)):n.base;
+    const bs=Math.min(b,1);
+    col[i*3]=c.r*bs;col[i*3+1]=c.g*bs;col[i*3+2]=c.b*bs;
+    sz[i]=on?4.0:1.6;
+    if(on)active++;
+  });
+  geo.attributes.pColor.needsUpdate=true;
+  geo.attributes.pSize.needsUpdate=true;
+  activeCount=active;
+}
+
+function frame(ts){
+  requestAnimationFrame(frame);
+  t=ts/1000;
+
+  // Cérebro
+  if(!drag)autoY+=.003;
+  pts.rotation.x=rotX;pts.rotation.y=rotY+autoY;
+  updateNeurons();
+  ren.render(scene,cam);
+
+  // Asas mosca
+  const a=Math.sin(t*8)*14;
+  document.getElementById('wl').setAttribute('transform',`rotate(${-22+a},58,54)`);
+  document.getElementById('wr').setAttribute('transform',`rotate(${22-a},142,54)`);
+
+  // Teclas
+  const pressed=state.pressed_keys||[];
+  ['w','a','s','d','i','j','k','l'].forEach(k=>{
+    const el=document.getElementById('k-'+k);
+    if(el)el.className='key'+(pressed.includes(k)?' on':'');
+  });
+
+  // Flash coleta
+  const col2=state.collected||0;
+  if(col2>prevCol){flashTimer=1.5;prevCol=col2;}
+  if(flashTimer>0){
+    flashTimer-=.016;
+    const fl=document.getElementById('flash');
+    fl.style.opacity=Math.min(flashTimer,1);
+    fl.textContent=`✓ COLETADO  #${col2}`;
+  } else {
+    document.getElementById('flash').style.opacity=0;
+  }
+
+  // Bias bar
+  const bias=state.fw_bias||0;
+  const fill=document.getElementById('bias-fill');
+  const pct=Math.abs(bias)*50;
+  fill.style.left=bias>=0?'50%':`${50-pct}%`;
+  fill.style.width=`${pct}%`;
+  fill.style.background=bias>=0?'#4caf87':'#8a3a3a';
+
+  // HUD
+  document.getElementById('active-count').textContent=`${activeCount} recently active`;
+  document.getElementById('s-lcr').textContent=` ${(state.left||0).toFixed(2)} / ${(state.center||0).toFixed(2)} / ${(state.right||0).toFixed(2)}`;
+  document.getElementById('s-bias').textContent=` ${(bias>=0?'+':'')+bias.toFixed(3)}`;
+  document.getElementById('s-col').textContent=` ${col2}`;
+  document.getElementById('f-bias').textContent=(bias>=0?'+':'')+bias.toFixed(3);
+  document.getElementById('f-mag').textContent=(state.mag||0).toFixed(2);
+}
+requestAnimationFrame(frame);
+
+// ================================================================
+// DEMO SINTÉTICO — inicia imediatamente, sempre animado
+// ================================================================
+const KEY_SETS=[['w','a'],['w','j'],['a','s'],['d','i','l'],['w','a','j'],['s','k'],['w','i'],['d','l']];
+let demoActive=false,isLive=false;
+
+function runSyntheticDemo(){
+  if(demoActive||isLive)return;
+  demoActive=true;
+  let dt=0;
+  (function tick(){
+    if(isLive){demoActive=false;return;}
+    dt+=.05;
+    const bias=Math.sin(dt*.4)*.7;
+    const left=Math.max(0,.5+Math.sin(dt*1.1)*.4);
+    const center=Math.max(0,.6+Math.sin(dt*.7)*.3);
+    const right=Math.max(0,.5-Math.sin(dt*1.1)*.4);
+    state={
+      fw_bias:Math.round(bias*1000)/1000,
+      left:Math.round(left*100)/100,
+      center:Math.round(center*100)/100,
+      right:Math.round(right*100)/100,
+      mag:Math.round((center*.6+Math.max(left,right)*.4)*100)/100,
+      collected:Math.floor(dt/8),
+      pressed_keys:KEY_SETS[Math.floor(dt/1.5)%KEY_SETS.length],
+      circuits:{
+        reward:{rate:.03+Math.abs(bias)*.06},
+        escape:{rate:0},
+        orient:{rate:.01+Math.abs(bias)*.02},
+      }
+    };
+    setTimeout(tick,50);
+  })();
+}
+
+// ================================================================
+// VÍDEO + SESSION.JSON SINCRONIZADOS
+// ================================================================
+const video=document.getElementById('gameplay-video');
+let sessionFrames=null;
+
+function findFrame(frames,vt){
+  let lo=0,hi=frames.length-1;
+  while(lo<hi){const mid=(lo+hi+1)>>1;if(frames[mid]._t<=vt)lo=mid;else hi=mid-1;}
+  return lo;
+}
+
+function startVideoSync(frames){
+  sessionFrames=frames;
+  demoActive=true; // bloqueia demo sintético
+  const dur=frames[frames.length-1]._t||1;
+  (function tick(){
+    if(isLive)return;
+    const vt=video.currentTime%dur;
+    const idx=findFrame(frames,vt);
+    const f=frames[idx];
+    state={
+      fw_bias:f.fw_bias||0,
+      left:f.left||0,center:f.center||0,right:f.right||0,
+      mag:f.mag||0,collected:f.collected||0,
+      pressed_keys:f.pressed_keys||[],
+      circuits:f.circuits||{reward:{rate:.02},escape:{rate:0},orient:{rate:.01}},
+    };
+    requestAnimationFrame(tick);
+  })();
+}
+
+// Tenta carregar session.json
+fetch('session.json')
+  .then(r=>{if(!r.ok)throw new Error();return r.json();})
+  .then(frames=>{
+    if(!frames||!frames.length)throw new Error();
+    // Aguarda vídeo estar pronto para sincronizar
+    if(video.readyState>=2){
+      startVideoSync(frames);
+    } else {
+      video.addEventListener('canplay',()=>startVideoSync(frames),{once:true});
+      // Se vídeo não carregar em 3s, usa replay por tempo
+      setTimeout(()=>{
+        if(!demoActive) startVideoSync(frames);
+      },3000);
+    }
+  })
+  .catch(()=>{
+    // Sem session.json — demo sintético
+    runSyntheticDemo();
+  });
+
+// Se vídeo falhar, garante demo sintético
+video.addEventListener('error',()=>{if(!demoActive&&!isLive)runSyntheticDemo();});
+
+// Garante que algo sempre roda após 3s
+setTimeout(()=>{if(!demoActive&&!isLive)runSyntheticDemo();},3000);
+
+// ================================================================
+// WEBSOCKET — sobrescreve tudo quando conecta
+// ================================================================
+const wsEl=document.getElementById('ws');
+
+function connectWS(){
+  let ws,connected=false;
+  try{ws=new WebSocket('ws://localhost:8765');}
+  catch(e){if(!demoActive)runSyntheticDemo();return;}
+
+  const to=setTimeout(()=>{
+    if(!connected){
+      try{ws.close();}catch{}
+      if(!demoActive)runSyntheticDemo();
+    }
+  },2000);
+
+  ws.onopen=()=>{
+    connected=true;isLive=true;demoActive=false;
+    clearTimeout(to);
+    wsEl.textContent='● LIVE';wsEl.className='on';
+  };
+  ws.onmessage=e=>{try{state=JSON.parse(e.data);}catch{}};
+  ws.onclose=()=>{
+    isLive=false;
+    wsEl.textContent='○ DISCONNECTED';wsEl.className='';
+    // Volta ao replay/demo quando desconecta
+    if(sessionFrames)startVideoSync(sessionFrames);
+    else runSyntheticDemo();
+    setTimeout(connectWS,3000);
+  };
+  ws.onerror=()=>ws.close();
+}
+
+// Inicia tudo
+connectWS();
+
+// Status inicial
+wsEl.textContent=sessionFrames?'▶ SYNC':'▶ DEMO';
+</script>
+</body>
+</html>

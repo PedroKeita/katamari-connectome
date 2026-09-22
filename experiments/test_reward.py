@@ -1,4 +1,4 @@
-from brain.reward import RewardCircuit
+from brain.domain.reward import RewardCircuit
 
 
 circuit = RewardCircuit()

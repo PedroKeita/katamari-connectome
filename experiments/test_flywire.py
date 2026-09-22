@@ -2,8 +2,8 @@ import sys, os, time
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from brain.flywire_loader  import FlyWireLoader
-from brain.flywire_circuit import FlyWireCircuit
+from brain.loaders.flywire import FlyWireLoader
+from brain.circuits.flywire import FlyWireCircuit
 
 
 def test_circuit(name, circuit, n_steps=30):

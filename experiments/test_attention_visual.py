@@ -3,7 +3,7 @@ import os
 import cv2
 
 from vision.capture import ScreenCapture
-from vision.attention import (
+from vision.detection.attention import (
     detect_attention_candidates,
     draw_attention
 )

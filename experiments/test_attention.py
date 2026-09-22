@@ -5,7 +5,7 @@ import time
 import cv2
 
 from vision.capture import ScreenCapture
-from vision.detect import detect_items
+from vision.detection.items import detect_items
 
 
 capture = ScreenCapture()

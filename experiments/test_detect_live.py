@@ -21,8 +21,8 @@ import numpy as np
 import mss
 
 try:
-    from vision.detect import detect_items, draw_detections
-    import vision.detect as _det
+    from vision.detection.items import detect_items, draw_detections
+    import vision.detection.items as _det
 except ImportError:
     import importlib.util, pathlib
     _p    = pathlib.Path(__file__).parent.parent / "vision" / "detect.py"

@@ -3,7 +3,7 @@ import os
 import cv2
 
 from vision.capture import ScreenCapture
-from vision.perception import detect_candidates
+from vision.detection.perception import detect_candidates
 
 
 os.makedirs("debug", exist_ok=True)

@@ -22,12 +22,15 @@ from dataclasses import dataclass
 
 @dataclass
 class ControlOutput:
+    """Normalized movement command sent to the game controller."""
+
     x:         float   # -1 esquerda .. +1 direita
     y:         float   # -1 frente   .. +1 ré
     magnitude: float   # 0 .. 1
 
 
 class CircuitIntegrator:
+    """Translate continuous L/C/R sensory signals into movement."""
 
     def __init__(
         self,
@@ -50,6 +53,12 @@ class CircuitIntegrator:
         escape_spikes: dict | None = None,
         orientation_spikes: dict | None = None,
     ) -> ControlOutput:
+        """Return a normalized command for one frame.
+
+        The spike dictionaries are retained for API compatibility with the
+        neural circuits, but direction and magnitude currently use the
+        continuous sensory inputs.
+        """
 
         # --------------------------------------------------
         # Sem estímulo → movimento exploratório basal
