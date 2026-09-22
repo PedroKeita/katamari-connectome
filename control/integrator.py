@@ -33,7 +33,7 @@ class CircuitIntegrator:
         self,
         dopamine:            float = 1.0,
         dead_zone:           float = 0.05,
-        turn_sensitivity:    float = 1.8,   # amplifica viradas
+        turn_sensitivity:    float = 1.2,   # reduzido — evita virar demais
         forward_sensitivity: float = 1.4,   # amplifica avanço
     ):
         self.dopamine            = dopamine
@@ -69,13 +69,16 @@ class CircuitIntegrator:
         # --------------------------------------------------
         lateral = left_input + right_input
         if lateral > 0.001:
-            # dx normalizado entre -1 e +1
             dx = (right_input - left_input) / lateral
         else:
             dx = 0.0
 
-        # Amplifica para o teclado reagir rápido
-        dx = max(-1.0, min(1.0, dx * self.turn_sensitivity))
+        # Quando center domina, reduz a virada — vai mais reto
+        # center_dominance: 0 = L/R dominam, 1 = center domina
+        center_dominance = center_input / max(total, 0.001)
+        effective_sensitivity = self.turn_sensitivity * (1.0 - center_dominance * 0.7)
+
+        dx = max(-1.0, min(1.0, dx * effective_sensitivity))
 
         # --------------------------------------------------
         # MAGNITUDE: o Katamari sempre vai para frente
@@ -90,6 +93,12 @@ class CircuitIntegrator:
 
         if magnitude < self.dead_zone:
             return ControlOutput(x=0.0, y=0.0, magnitude=0.0)
+
+        # Ruído estocástico — neurônios reais têm variabilidade aleatória
+        # 3% dos frames injetam um pequeno viés para quebrar loops de feedback
+        import random
+        if random.random() < 0.03:
+            dx = max(-1.0, min(1.0, dx + random.gauss(0, 0.25)))
 
         # Sempre frente (y negativo)
         dy = -1.0

@@ -1,5 +1,4 @@
 """
-
 Arquitetura corrigida:
   - SensoryEncoder gera L/C/R (rápido, confiável — base do movimento)
   - FlyWire roda em thread separada com n_steps=30, atualiza a cada ~5 frames
@@ -202,8 +201,12 @@ def main():
         if visual_circuit:
             logger.info("Sistema visual: ativo (46k neurônios em thread background)")
 
-    from brain.neural_server import NeuralServer
+    from brain.neural_server  import NeuralServer
+    from brain.session_logger import SessionLogger
     import webbrowser, pathlib
+
+    session_log = SessionLogger()
+    logger.info(f"Sessão: {session_log.session_id}")
 
     neural_server = NeuralServer(port=8765)
     neural_server.start()
@@ -225,9 +228,14 @@ def main():
     # Estado do escape circuit
     _escape_active     = False
     _escape_frames     = 0
-    ESCAPE_HOLD_FRAMES = 9       # ~300ms a 30fps
+    ESCAPE_HOLD_FRAMES = 12      # ~400ms a 30fps — tempo suficiente para o quick turn
     STAGNATION_LIMIT   = 180     # frames sem coleta para ativar escape (~6s a 30fps)
     _frames_since_col  = 0       # frames desde a última coleta
+
+    # Detector de freeze por valores L/C/R
+    _last_lcr         = (0.0, 0.0, 0.0)
+    _lcr_freeze_count = 0
+    LCR_FREEZE_LIMIT  = 60   # 2s a 30fps — se L/C/R idênticos por 2s = jogo congelado
 
     dopamine              = args.dopamine
     focus_patience        = 0
@@ -352,6 +360,7 @@ def main():
                 dopamine = min(args.dopamine * 1.6, 2.0)
                 integrator.dopamine = dopamine
                 logger.info(f"COLETADO #{total_collected}  frame={frame_n}")
+                session_log.log_event(frame_n, "COLETADO", f"#{total_collected}")
             else:
                 if dopamine > args.dopamine:
                     dopamine = max(dopamine - 0.04, args.dopamine)
@@ -363,6 +372,7 @@ def main():
                     focus_patience = 0
                     skip_focus = min(skip_focus + 1, len(items) - 1)
                     logger.info(f"Pulando para candidato #{skip_focus}")
+                    session_log.log_event(frame_n, "PULANDO", f"#{skip_focus}")
             else:
                 focus_patience = 0; skip_focus = 0
 
@@ -372,6 +382,20 @@ def main():
             # --- Campo visual → L/C/R (base do movimento) ---
             visual_field        = items_to_visual_field(items, w, h)
             left, center, right = encoder.encode(visual_field)
+
+            # Detector de freeze: se L/C/R não mudaram por LCR_FREEZE_LIMIT frames
+            lcr_now = (round(left, 3), round(center, 3), round(right, 3))
+            if lcr_now == _last_lcr and lcr_now != (0.0, 0.0, 0.0):
+                _lcr_freeze_count += 1
+            else:
+                _lcr_freeze_count = 0
+                _last_lcr = lcr_now
+
+            if _lcr_freeze_count >= LCR_FREEZE_LIMIT:
+                gamepad.reset()
+                elapsed = time.time() - t0
+                if interval - elapsed > 0: time.sleep(interval - elapsed)
+                continue
 
             # --- FlyWire: alimenta a thread e lê o bias mais recente ---
             if use_flywire and (left + right) > 0.05:
@@ -444,9 +468,12 @@ def main():
                     else:
                         trigger = f"estagnação={_frames_since_col} frames"
                     logger.info(f"ESCAPE! {trigger} → Giant Fiber ativado")
+                    session_log.log_event(frame_n, "ESCAPE", trigger)
                     escape_rate = 1.0
 
-            gamepad.send(output)
+            # Durante escape: só SHIFT+CTRL, sem teclas de movimento
+            if not _escape_active:
+                gamepad.send(output)
 
             neural_server.push({
                 "escape_active": _escape_active,
@@ -464,6 +491,27 @@ def main():
                     "orient": {"rate": round(abs(float(fw_bias))*0.02, 4)},
                 },
             })
+
+            # Logging científico
+            session_log.log_frame(
+                frame        = frame_n,
+                fps          = fps_disp,
+                left         = float(left),
+                center       = float(center),
+                right        = float(right),
+                x            = float(output.x),
+                magnitude    = float(output.magnitude),
+                fw_bias      = float(fw_bias),
+                visual_bias  = float(visual_escape_bias) if visual_circuit else 0.0,
+                escape_active= _escape_active,
+                dopamine     = dopamine,
+                items        = len(items),
+                skip_focus   = skip_focus,
+                collected    = total_collected,
+                reward_rate  = abs(float(fw_bias)) * 0.05,
+                escape_rate  = escape_rate,
+                orient_rate  = abs(float(fw_bias)) * 0.02,
+            )
 
             if frame_n % args.fps == 0:
                 now = time.time()
@@ -524,6 +572,9 @@ def main():
             except Exception: pass
             cv2.destroyAllWindows()
         logger.info(f"Total coletados: {total_collected}")
+        summary = session_log.close()
+        logger.info(f"Sessão salva: {summary['frame_file']}")
+        logger.info(f"  {summary['frames']} frames · {summary['events']} eventos · {summary['duration_s']}s")
         logger.info("=== ENCERRADO ===")
 
 
