@@ -143,6 +143,56 @@ def load_flywire(data_dir: str):
         return None
 
 
+def load_ppl(data_dir: str):
+    """Carrega neurônios PPL dopaminérgicos aversivos."""
+    try:
+        from brain.ppl_loader import PPLLoader
+        from brain.ppl_runner import PPLRunner
+        if not os.path.exists(os.path.join(data_dir, "neuron_annotations.tsv")):
+            return None
+        logger.info("Carregando PPL dopaminérgicos (aversivo)...")
+        loader  = PPLLoader(data_dir=data_dir, min_weight=3)
+        circuit = loader.load_ppl_circuit()
+        return PPLRunner(circuit)
+    except Exception as e:
+        logger.warning(f"PPL não carregou: {e}")
+        return None
+
+
+def load_pcb(data_dir: str):
+    """Carrega o Protocerebral Bridge (integração bilateral)."""
+    try:
+        from brain.pcb_loader import PCBLoader
+        from brain.pcb_runner import PCBRunner
+        if not os.path.exists(os.path.join(data_dir, "neuron_annotations.tsv")):
+            return None
+        logger.info("Carregando Protocerebral Bridge (integração bilateral)...")
+        loader  = PCBLoader(data_dir=data_dir, min_weight=3)
+        circuit = loader.load_pcb_circuit()
+        return PCBRunner(circuit)
+    except Exception as e:
+        logger.warning(f"PCB não carregou: {e}")
+        return None
+
+
+def load_cx(data_dir: str):
+    """Carrega o Complexo Central em thread separada."""
+    try:
+        from brain.cx_loader import CXLoader
+        from brain.cx_runner import CXRunner
+
+        if not os.path.exists(os.path.join(data_dir, "neuron_annotations.tsv")):
+            return None
+
+        logger.info("Carregando Complexo Central (EPG → PFL3 → DNs)...")
+        loader  = CXLoader(data_dir=data_dir, min_weight=3)
+        circuit = loader.load_cx_circuit()
+        return CXRunner(circuit)
+    except Exception as e:
+        logger.warning(f"Complexo Central não carregou: {e}")
+        return None
+
+
 def load_visual_circuit(data_dir: str):
     """Carrega o sistema visual completo em thread separada."""
     try:
@@ -193,6 +243,27 @@ def main():
     fw_runner   = FlyWireRunner(fw_circuits) if fw_circuits else None
     use_flywire = fw_runner is not None
     logger.info(f"FlyWire: {'ativo (thread background)' if use_flywire else 'desativado'}")
+
+    # PPL dopaminérgicos (aversivo — ativa quando preso)
+    ppl_runner = None
+    if not args.no_flywire:
+        ppl_runner = load_ppl(DATA_DIR)
+        if ppl_runner:
+            logger.info("PPL: ativo (sinal aversivo em thread background)")
+
+    # Protocerebral Bridge (integração bilateral)
+    pcb_runner = None
+    if not args.no_flywire:
+        pcb_runner = load_pcb(DATA_DIR)
+        if pcb_runner:
+            logger.info("PCB: ativo (integração bilateral em thread background)")
+
+    # Complexo Central (EPG bússola → PFL3 → DNs)
+    cx_runner = None
+    if not args.no_flywire:
+        cx_runner = load_cx(DATA_DIR)
+        if cx_runner:
+            logger.info("Complexo Central: ativo (bússola interna em thread background)")
 
     # Sistema visual completo (R1-6 → L → T4/T5 → LPLC2 → DNp01)
     visual_circuit = None
@@ -397,6 +468,34 @@ def main():
                 if interval - elapsed > 0: time.sleep(interval - elapsed)
                 continue
 
+            # --- PPL: atualiza estagnação e lê bias aversivo ---
+            if ppl_runner:
+                ppl_runner.update(
+                    stagnation_frames = _frames_since_col,
+                    dx = output.x if 'output' in dir() else 0.0
+                )
+                ppl_bias = ppl_runner.aversive_bias
+            else:
+                ppl_bias = 0.0
+
+            # --- PCB: atualiza L/C/R e lê bias bilateral ---
+            if pcb_runner:
+                pcb_runner.update_lcr(
+                    left   = left,
+                    center = center,
+                    right  = right,
+                )
+                pcb_bias = pcb_runner.lateral_bias
+            else:
+                pcb_bias = 0.0
+
+            # --- Complexo Central: atualiza direção e lê bias ---
+            if cx_runner:
+                cx_runner.update_heading(output.x if 'output' in dir() else 0.0)
+                cx_bias = cx_runner.lateral_bias
+            else:
+                cx_bias = 0.0
+
             # --- FlyWire: alimenta a thread e lê o bias mais recente ---
             if use_flywire and (left + right) > 0.05:
                 fw_runner.update_input(left, right)
@@ -415,6 +514,24 @@ def main():
             # --- Integrador: L/C/R base + bias FlyWire ---
             # O bias ajusta o dx sem sobrescrever a magnitude
             output = integrator.integrate(left, center, right, spikes)
+
+            # Aplica bias PPL (aversivo — empurra para fora da direção ruim)
+            if ppl_runner and abs(ppl_bias) > 0.01:
+                new_x = float(np.clip(output.x + ppl_bias, -1.0, 1.0))
+                from control.integrator import ControlOutput as CO
+                output = CO(x=new_x, y=output.y, magnitude=output.magnitude)
+
+            # Aplica bias PCB (integração bilateral)
+            if pcb_runner and abs(pcb_bias) > 0.01:
+                new_x = float(np.clip(output.x + pcb_bias, -1.0, 1.0))
+                from control.integrator import ControlOutput as CO
+                output = CO(x=new_x, y=output.y, magnitude=output.magnitude)
+
+            # Aplica bias do Complexo Central (bússola interna)
+            if cx_runner and abs(cx_bias) > 0.01:
+                new_x = float(np.clip(output.x + cx_bias, -1.0, 1.0))
+                from control.integrator import ControlOutput as CO
+                output = CO(x=new_x, y=output.y, magnitude=output.magnitude)
 
             # Aplica bias FlyWire ao dx resultante
             if use_flywire and abs(fw_bias_scaled) > 0.01:
@@ -564,6 +681,9 @@ def main():
     finally:
         neural_server.stop()
         if visual_circuit: visual_circuit.stop()
+        if cx_runner: cx_runner.stop()
+        if ppl_runner: ppl_runner.stop()
+        if pcb_runner: pcb_runner.stop()
         if fw_runner: fw_runner.stop()
         gamepad.close()
         capture.close()
