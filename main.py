@@ -1,4 +1,5 @@
 """
+
 Arquitetura corrigida:
   - SensoryEncoder gera L/C/R (rápido, confiável — base do movimento)
   - FlyWire roda em thread separada com n_steps=30, atualiza a cada ~5 frames
@@ -143,6 +144,33 @@ def load_flywire(data_dir: str):
         return None
 
 
+def load_visual_circuit(data_dir: str):
+    """Carrega o sistema visual completo em thread separada."""
+    try:
+        from brain.visual_loader  import VisualLoader
+        from brain.visual_circuit import VisualCircuit
+
+        if not os.path.exists(os.path.join(data_dir, "neuron_annotations.tsv")):
+            return None
+
+        logger.info("Carregando sistema visual FlyWire (R1-6 → L → T4/T5 → LPLC2 → DNp01)...")
+        loader  = VisualLoader(data_dir=data_dir, min_weight=3)
+        circuit = loader.load_visual_circuit()
+
+        vc = VisualCircuit(circuit)
+        # Passa as posições dos fotorreceptores calculadas pelo loader
+        if hasattr(circuit, '_r_positions'):
+            vc._r_positions = circuit._r_positions
+
+        return vc
+    except Exception as e:
+        logger.warning(f"Sistema visual não carregou: {e}")
+        return None
+
+
+
+
+
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
@@ -166,6 +194,13 @@ def main():
     fw_runner   = FlyWireRunner(fw_circuits) if fw_circuits else None
     use_flywire = fw_runner is not None
     logger.info(f"FlyWire: {'ativo (thread background)' if use_flywire else 'desativado'}")
+
+    # Sistema visual completo (R1-6 → L → T4/T5 → LPLC2 → DNp01)
+    visual_circuit = None
+    if args.escape and not args.no_flywire:
+        visual_circuit = load_visual_circuit(DATA_DIR)
+        if visual_circuit:
+            logger.info("Sistema visual: ativo (46k neurônios em thread background)")
 
     from brain.neural_server import NeuralServer
     import webbrowser, pathlib
@@ -201,8 +236,6 @@ def main():
     total_collected       = 0
     last_collection_frame = -999
     fw_bias               = 0.0
-    _fw_bias_baseline     = 0.0   # média móvel para cancelar offset anatômico constante
-    _FW_BIAS_ALPHA        = 0.02  # tau ~50 frames (~1.7s a 30fps)
 
     frame_n   = 0
     fps_t     = time.time()
@@ -345,11 +378,10 @@ def main():
                 fw_runner.update_input(left, right)
                 fw_bias = fw_runner.lateral_bias
 
-                _fw_bias_baseline += _FW_BIAS_ALPHA * (fw_bias - _fw_bias_baseline)
-                fw_bias_centered   = fw_bias - _fw_bias_baseline
-
-                # Escala conservadora: máx ±0.3 no eixo X
-                fw_bias_scaled = float(np.clip(fw_bias_centered * 0.5, -0.3, 0.3))
+                # O bias FlyWire ajusta sutilmente o dx
+                # bias > 0 = PAMs direitos mais ativos → empurra para direita
+                # bias < 0 = PAMs esquerdos mais ativos → empurra para esquerda
+                fw_bias_scaled = 0.0  # desativado — viés anatômico fêmea causa giro constante
             else:
                 fw_bias_scaled = 0.0
 
@@ -381,24 +413,38 @@ def main():
             else:
                 _frames_since_col += 1
 
+            # Alimenta o circuito visual com o frame atual
+            if visual_circuit:
+                visual_circuit.push_frame(frame)
+                visual_escape_bias = visual_circuit.escape_bias
+            else:
+                visual_escape_bias = 0.0
+
             if _escape_active:
                 _escape_frames -= 1
                 if _escape_frames <= 0:
                     _escape_active = False
-                    _frames_since_col = 0   # reseta contagem após escape
+                    _frames_since_col = 0
                     gamepad.release_escape()
                     logger.info("Escape: Giant Fiber desativado — nova direção")
                 escape_rate = 0.8
-            elif args.escape and _frames_since_col >= STAGNATION_LIMIT:
-                # DNp01 dispara — quick turn
-                _escape_active = True
-                _escape_frames = ESCAPE_HOLD_FRAMES
-                gamepad.trigger_escape()
-                logger.info(
-                    f"ESCAPE! estagnação={_frames_since_col} frames "
-                    f"sem coleta → Giant Fiber ativado"
-                )
-                escape_rate = 1.0
+            elif args.escape:
+                # Circuito visual: DNp01 dispara quando detecta looming
+                visual_threat = visual_circuit and abs(visual_escape_bias) > 0.35
+                # Estagnação: sempre ativo como fallback biológico
+                # (baixa dopamina → sistema de escape assume controle)
+                stagnation_threat = _frames_since_col >= STAGNATION_LIMIT
+
+                if visual_threat or stagnation_threat:
+                    _escape_active = True
+                    _escape_frames = ESCAPE_HOLD_FRAMES
+                    gamepad.trigger_escape()
+                    if visual_threat:
+                        trigger = f"visual bias={visual_escape_bias:+.2f}"
+                    else:
+                        trigger = f"estagnação={_frames_since_col} frames"
+                    logger.info(f"ESCAPE! {trigger} → Giant Fiber ativado")
+                    escape_rate = 1.0
 
             gamepad.send(output)
 
@@ -469,6 +515,7 @@ def main():
         logger.info("Interrompido.")
     finally:
         neural_server.stop()
+        if visual_circuit: visual_circuit.stop()
         if fw_runner: fw_runner.stop()
         gamepad.close()
         capture.close()

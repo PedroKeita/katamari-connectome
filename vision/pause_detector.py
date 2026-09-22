@@ -67,28 +67,19 @@ class PauseDetector:
             votes_paused += 1
 
         # --------------------------------------------------
-        # 2. CONGELAMENTO — frame quase idêntico ao anterior
+        # 2. CONGELAMENTO — DESATIVADO
+        # Causa deadlock: quando o gamepad para o Katamari,
+        # o frame congela → freeze detector detecta pausa →
+        # gamepad para mais → loop infinito.
         # --------------------------------------------------
-        if self._prev_gray is not None:
-            diff = cv2.absdiff(gray, self._prev_gray)
-            mean_diff = float(diff.mean())
-
-            if mean_diff < self.freeze_threshold:
-                self._frozen_count += 1
-            else:
-                self._frozen_count = 0
-
-            if self._frozen_count >= self.freeze_frames:
-                votes_paused += 2   # peso maior — muito confiável
-
         self._prev_gray = gray.copy()
 
         # --------------------------------------------------
-        # 3. DECISÃO
+        # 3. DECISÃO — desativado completamente
+        # O escurecimento também gera falsos positivos nas
+        # fases coloridas do Katamari. Retorna sempre False.
         # --------------------------------------------------
-        # 1 voto (só escuro) = incerto
-        # 2+ votos = pausado
-        self.is_paused = votes_paused >= 2
+        self.is_paused = False
 
         return self.is_paused
 
