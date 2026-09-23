@@ -1,0 +1,26 @@
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:           #0d1117;
+  --border:       #1e2d3d;
+  --green:        #4caf87;
+  --green-dim:    #1e4a35;
+  --green-bright: #7dd4b0;
+  --text-dim:     #1e3a2a;
+  --white:        #c9d1d9;
+  --red:          #8a3a3a;
+  --red-bright:   #e05555;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--white);
+  font-family: 'Courier New', Courier, monospace;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
