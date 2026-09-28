@@ -16,7 +16,7 @@ function buildNeurons() {
   function cluster(cx, cy, cz, rx, ry, rz, n, ci) {
     for (let i = 0; i < n; i++) {
       const u = rng(), v = rng(), w = rng();
-      const r = Math.cbrt(w) * 0.97;
+      const r  = Math.cbrt(w) * 0.97;
       const th = Math.acos(2 * u - 1);
       const ph = 2 * Math.PI * v;
       neurons.push({
@@ -29,16 +29,16 @@ function buildNeurons() {
     }
   }
 
-  // Mushroom Body (reward) — bilateral
+  // Mushroom Body (reward) — bilateral → magenta
   cluster(-18, 4, 0, 20, 17, 13, 700, 'R');
   cluster( 18, 4, 0, 20, 17, 13, 700, 'R');
   // Calyx
   cluster(-11, -10, 6, 7, 5, 5, 150, 'R');
   cluster( 11, -10, 6, 7, 5, 5, 150, 'R');
-  // Descending (orient)
+  // Descending (orient) → yellow
   cluster(  0, -24, 0, 5, 13, 5, 200, 'O');
   cluster(  0, -37, 0, 4,  7, 4,  80, 'O');
-  // Optic lobes (escape)
+  // Optic lobes (escape) → coral
   cluster(-44,  2, 0, 7, 13, 5,  60, 'E');
   cluster( 44,  2, 0, 7, 13, 5,  60, 'E');
 
@@ -46,12 +46,12 @@ function buildNeurons() {
 }
 
 export default function BrainCanvas({ state }) {
-  const ref       = useRef(null);
-  const stateRef  = useRef(state);
+  const ref      = useRef(null);
+  const stateRef = useRef(state);
   stateRef.current = state;
 
   useEffect(() => {
-    const el  = ref.current;
+    const el = ref.current;
     if (!el) return;
 
     const renderer = new THREE.WebGLRenderer({ canvas: el, antialias: true, alpha: true });
@@ -70,9 +70,10 @@ export default function BrainCanvas({ state }) {
     const col = new Float32Array(N * 3);
     const sz  = new Float32Array(N);
 
-    const CR = new THREE.Color('#7dd4b0');
-    const CE = new THREE.Color('#a0e8c8');
-    const CO = new THREE.Color('#5aad88');
+    // Katamari palette per circuit
+    const CR = new THREE.Color('#FF3F8E'); // magenta  — reward
+    const CE = new THREE.Color('#FF5A4E'); // coral    — escape
+    const CO = new THREE.Color('#FFDA00'); // yellow   — orient
 
     neurons.forEach((n, i) => {
       pos[i * 3]     = n.x;
@@ -118,10 +119,8 @@ export default function BrainCanvas({ state }) {
     const points = new THREE.Points(geo, mat);
     scene.add(points);
 
-    // Resize
     function resize() {
-      const w = el.clientWidth;
-      const h = el.clientHeight;
+      const w = el.clientWidth, h = el.clientHeight;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -130,7 +129,6 @@ export default function BrainCanvas({ state }) {
     const ro = new ResizeObserver(resize);
     ro.observe(el);
 
-    // Drag to rotate
     let drag = false, lx = 0, ly = 0, rotX = 0, rotY = 0, autoY = 0;
     el.addEventListener('mousedown', e => { drag = true; lx = e.clientX; ly = e.clientY; });
     window.addEventListener('mouseup',   () => (drag = false));
@@ -142,7 +140,6 @@ export default function BrainCanvas({ state }) {
       lx = e.clientX; ly = e.clientY;
     });
 
-    // RNG for per-frame firing
     function sRNG2(s) {
       return () => {
         s = Math.imul(s ^ (s >>> 15), s | 1);
@@ -156,11 +153,11 @@ export default function BrainCanvas({ state }) {
       raf = requestAnimationFrame(frame);
       t += 0.016;
 
-      const st    = stateRef.current;
-      const bias  = st.fw_bias  ?? 0;
-      const rR    = st.circuits?.reward?.rate  ?? 0;
-      const rE    = st.circuits?.escape?.rate  ?? 0;
-      const rO    = st.circuits?.orient?.rate  ?? 0;
+      const st   = stateRef.current;
+      const bias = st.fw_bias          ?? 0;
+      const rR   = st.circuits?.reward?.rate ?? 0;
+      const rE   = st.circuits?.escape?.rate ?? 0;
+      const rO   = st.circuits?.orient?.rate ?? 0;
       const pulse = 0.5 + 0.5 * Math.sin(t * 3.5);
       const rng2  = sRNG2(Math.floor(t * 18) & 0xfffff);
       const bL    = Math.max(0, -bias);
@@ -198,5 +195,10 @@ export default function BrainCanvas({ state }) {
     };
   }, []);
 
-  return <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab' }} />;
+  return (
+    <canvas
+      ref={ref}
+      style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab' }}
+    />
+  );
 }

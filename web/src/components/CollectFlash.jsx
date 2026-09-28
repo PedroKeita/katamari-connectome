@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 
 export default function CollectFlash({ collected = 0 }) {
-  const [visible,  setVisible]  = useState(false);
-  const [count,    setCount]    = useState(collected);
+  const [visible, setVisible] = useState(false);
+  const [count,   setCount]   = useState(collected);
   const prevRef = useRef(collected);
 
   useEffect(() => {
@@ -21,8 +21,8 @@ export default function CollectFlash({ collected = 0 }) {
       position: 'fixed', top: '50%', left: '25%',
       transform: 'translate(-50%, -50%)',
       fontSize: 20, fontWeight: 700,
-      color: 'var(--green-bright)',
-      textShadow: '0 0 20px var(--green)',
+      color: 'var(--yellow)',
+      textShadow: '0 0 24px var(--magenta)',
       letterSpacing: 4, whiteSpace: 'nowrap',
       pointerEvents: 'none', zIndex: 99,
       opacity: visible ? 1 : 0,
