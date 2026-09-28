@@ -348,48 +348,7 @@ function KeyboardMapping() {
   );
 }
 
-function Roadmap() {
-  const items = [
-    { v: 'v0.1', status: 'done',    label: 'Python prototype — LIF, 3 circuits, 30 FPS, vgamepad' },
-    { v: 'v0.2', status: 'current', label: 'C++ simulation core — full 139k neuron performance, pybind11 bridge' },
-    { v: 'v0.3', status: 'planned', label: 'Full FlyWire API integration — every neuron mapped to real biological ID' },
-    { v: 'v0.4', status: 'planned', label: 'Real-time dopamine modulation — DAL/DAM clusters stimulated by game events' },
-  ];
 
-  const colors = {
-    done:    'var(--magenta-dim)',
-    current: 'var(--magenta)',
-    planned: 'var(--border)',
-  };
-  const labels = { done: 'DONE', current: 'CURRENT', planned: 'PLANNED' };
-
-  return (
-    <div style={S.sectionGap}>
-      <div style={S.eyebrow}>07 / ROADMAP</div>
-      <div style={S.h2}>Version history</div>
-
-      <div style={{ position: 'relative', paddingLeft: 32 }}>
-        <div style={{ position: 'absolute', left: 10, top: 0, bottom: 0, width: 1, background: 'var(--border)' }} />
-        {items.map((it) => (
-          <div key={it.v} style={{ position: 'relative', marginBottom: 24 }}>
-            <div style={{
-              position: 'absolute', left: -26, top: 4,
-              width: 12, height: 12, borderRadius: '50%',
-              background: it.status === 'done' ? 'var(--magenta-dim)' : it.status === 'current' ? 'var(--magenta)' : 'var(--bg)',
-              border: `1px solid ${colors[it.status]}`,
-              boxShadow: it.status === 'current' ? '0 0 10px var(--magenta)' : 'none',
-            }} />
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-              <span style={{ fontFamily: 'Courier New', fontSize: 13, color: colors[it.status], fontWeight: 700 }}>{it.v}</span>
-              <span style={{ fontSize: 9, color: colors[it.status], letterSpacing: 2 }}>{labels[it.status]}</span>
-            </div>
-            <div style={{ fontSize: 12, color: '#c8a8b0', marginTop: 4 }}>{it.label}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function References() {
   const refs = [
@@ -403,7 +362,7 @@ function References() {
 
   return (
     <div style={S.sectionGap}>
-      <div style={S.eyebrow}>08 / REFERENCES</div>
+      <div style={S.eyebrow}>07 / REFERENCES</div>
       <div style={S.h2}>Scientific basis</div>
       {refs.map((r) => (
         <div key={r.text} style={{ display: 'flex', gap: 16, marginBottom: 10, alignItems: 'flex-start' }}>
@@ -433,8 +392,6 @@ export default function ScienceSections() {
         <Pipeline />
         <Divider />
         <KeyboardMapping />
-        <Divider />
-        <Roadmap />
         <Divider />
         <References />
       </div>

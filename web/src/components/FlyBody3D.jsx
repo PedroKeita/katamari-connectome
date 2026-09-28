@@ -1,177 +1,82 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
-// Katamari palette para a mosca
-const K_MAGENTA = 0xFF3F8E;
-const K_MAGENTA_DIM = 0x7a1a42;
-const K_CORAL   = 0xFF5A4E;
-const K_LILAC   = 0xC778DD;
-const K_BODY    = 0x2a1020;
-const K_BODY2   = 0x3d1830;
-const K_BODY3   = 0x1a0c14;
+const MAT = {
+  body:     new THREE.MeshPhongMaterial({ color: 0xac592a, shininess: 40, specular: 0x442211 }),
+  red:      new THREE.MeshPhongMaterial({ color: 0xcc0708, shininess: 50, specular: 0x441111 }),
+  ocelli:   new THREE.MeshPhongMaterial({ color: 0x200c04, shininess: 80 }),
+  black:    new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 55 }),
+  lower:    new THREE.MeshPhongMaterial({ color: 0xcc9c62, shininess: 35 }),
+  brown:    new THREE.MeshPhongMaterial({ color: 0x341407, shininess: 40 }),
+  membrane: new THREE.MeshPhongMaterial({
+    color: 0x8aaece, shininess: 90, specular: 0xaaccee,
+    transparent: true, opacity: 0.45, side: THREE.DoubleSide,
+  }),
+};
 
-function makeMat(color, opacity = 1, wire = false) {
-  return new THREE.MeshBasicMaterial({
-    color, transparent: opacity < 1, opacity, wireframe: wire,
-    side: THREE.DoubleSide,
-  });
+function matForFile(name) {
+  if (name.includes('_membrane'))                                 return MAT.membrane;
+  if (name.includes('_red'))                                      return MAT.red;
+  if (name.includes('_ocelli'))                                   return MAT.ocelli;
+  if (name.includes('_black'))                                    return MAT.black;
+  if (name.includes('bristle-brown') || name.includes('_brown')) return MAT.brown;
+  if (name.includes('_lower'))                                    return MAT.lower;
+  return MAT.body;
 }
 
-function buildFly(scene) {
-  const parts = {};
-
-  const headGeo   = new THREE.SphereGeometry(2.8, 16, 12);
-  const thoraxGeo = new THREE.SphereGeometry(3.8, 16, 12);
-  thoraxGeo.scale(1, 0.85, 1.1);
-  const abdomenGeo = new THREE.SphereGeometry(3.2, 16, 12);
-  abdomenGeo.scale(0.85, 1.5, 0.85);
-
-  const head    = new THREE.Mesh(headGeo,   makeMat(K_BODY2));
-  const thorax  = new THREE.Mesh(thoraxGeo, makeMat(K_BODY));
-  const abdomen = new THREE.Mesh(abdomenGeo, makeMat(K_BODY3));
-
-  head.position.set(0, 9, 0);
-  thorax.position.set(0, 4, 0);
-  abdomen.position.set(0, -3, 0);
-
-  // Wireframe overlay em magenta suave
-  [headGeo, thoraxGeo, abdomenGeo].forEach((g, i) => {
-    const wf = new THREE.Mesh(g.clone(), makeMat(K_MAGENTA, 0.12, true));
-    wf.position.copy([head, thorax, abdomen][i].position);
-    scene.add(wf);
-  });
-
-  scene.add(head, thorax, abdomen);
-
-  // Olhos
-  const eyeGeo = new THREE.SphereGeometry(1.3, 12, 10);
-  const eyeL   = new THREE.Mesh(eyeGeo, makeMat(K_MAGENTA_DIM));
-  const eyeR   = new THREE.Mesh(eyeGeo.clone(), makeMat(K_MAGENTA_DIM));
-  eyeL.position.set(-1.8, 10.2, 2.0);
-  eyeR.position.set( 1.8, 10.2, 2.0);
-  scene.add(eyeL, eyeR);
-
-  // Anéis nos olhos em magenta
-  [eyeL, eyeR].forEach(eye => {
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(1.4, 0.12, 8, 24),
-      makeMat(K_MAGENTA, 0.55)
-    );
-    ring.position.copy(eye.position);
-    ring.rotation.x = Math.PI / 2;
-    scene.add(ring);
-  });
-
-  // Antenas
-  parts.antennae = [];
-  [[-1], [1]].forEach(([sx]) => {
-    const points = [
-      new THREE.Vector3(sx * 1.0, 11.5, 2.2),
-      new THREE.Vector3(sx * 2.2, 13.5, 3.0),
-      new THREE.Vector3(sx * 3.0, 14.8, 2.0),
-    ];
-    const curve = new THREE.CatmullRomCurve3(points);
-    const geo   = new THREE.TubeGeometry(curve, 8, 0.15, 6, false);
-    const ant   = new THREE.Mesh(geo, makeMat(K_BODY2));
-    scene.add(ant);
-
-    const tip = new THREE.Mesh(
-      new THREE.SphereGeometry(0.45, 8, 8),
-      makeMat(K_CORAL, 0.9)
-    );
-    tip.position.copy(points[2]);
-    scene.add(tip);
-    parts.antennae.push({ ant, tip, base: points[0].clone() });
-  });
-
-  // Asas
-  function makeWing(sx) {
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0);
-    shape.bezierCurveTo(sx * 2, 3,   sx * 10, 5,  sx * 14, 2);
-    shape.bezierCurveTo(sx * 16, 0,  sx * 14, -4, sx * 8, -5);
-    shape.bezierCurveTo(sx * 4, -4,  sx * 1, -2,  0, 0);
-
-    const geo  = new THREE.ShapeGeometry(shape);
-    const mesh = new THREE.Mesh(geo, makeMat(K_LILAC, 0.08));
-
-    // Veia
-    const veinPts = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(sx * 14, 1, 0)];
-    const veinGeo  = new THREE.BufferGeometry().setFromPoints(veinPts);
-    const veinLine = new THREE.Line(veinGeo, new THREE.LineBasicMaterial({ color: K_MAGENTA, transparent: true, opacity: 0.25 }));
-    mesh.add(veinLine);
-
-    // Borda
-    const edgePts  = shape.getPoints(32).map(p => new THREE.Vector3(p.x, p.y, 0));
-    const edgeGeo  = new THREE.BufferGeometry().setFromPoints(edgePts);
-    const edgeLine = new THREE.Line(edgeGeo, new THREE.LineBasicMaterial({ color: K_MAGENTA, transparent: true, opacity: 0.3 }));
-    mesh.add(edgeLine);
-
-    return mesh;
-  }
-
-  const wingPivotL = new THREE.Object3D();
-  const wingPivotR = new THREE.Object3D();
-  wingPivotL.position.set(-3.8, 4.5, 0);
-  wingPivotR.position.set( 3.8, 4.5, 0);
-  wingPivotL.add(makeWing(-1));
-  wingPivotR.add(makeWing( 1));
-  scene.add(wingPivotL, wingPivotR);
-  parts.wingPivotL = wingPivotL;
-  parts.wingPivotR = wingPivotR;
-
-  // Pernas
-  parts.legs = [];
-  const legDefs = [
-    { y: 5.5,  zOff: 1.5 },
-    { y: 3.5,  zOff: 0.5 },
-    { y: 1.5,  zOff: -0.5 },
-  ];
-
-  legDefs.forEach(({ y, zOff }) => {
-    [-1, 1].forEach(sx => {
-      const coxa   = new THREE.Vector3(sx * 3.5, y,        zOff);
-      const femur  = new THREE.Vector3(sx * 7.0, y - 2,    zOff);
-      const tibia  = new THREE.Vector3(sx * 9.5, y - 5,    zOff);
-      const tarsus = new THREE.Vector3(sx * 10.5, y - 7.5, zOff + 0.5);
-
-      const segs = [[coxa, femur], [femur, tibia], [tibia, tarsus]];
-      const meshes = segs.map(([a, b]) => {
-        const geo  = new THREE.BufferGeometry().setFromPoints([a, b]);
-        const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: K_BODY2 }));
-        scene.add(line);
-        return { line, geo, a: a.clone(), b: b.clone() };
-      });
-
-      parts.legs.push({ meshes, sx, base: { coxa, femur, tibia, tarsus } });
-    });
-  });
-
-  // Halteres em coral
-  parts.halteres = [];
-  [-1, 1].forEach(sx => {
-    const geo  = new THREE.SphereGeometry(0.5, 8, 6);
-    const mesh = new THREE.Mesh(geo, makeMat(K_CORAL, 0.65));
-    mesh.position.set(sx * 3.5, 2, 0.5);
-    scene.add(mesh);
-    parts.halteres.push(mesh);
-  });
-
-  // Anéis de segmentos do abdomen
-  for (let i = 0; i < 5; i++) {
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(3.2 - i * 0.25, 0.12, 6, 20),
-      makeMat(K_MAGENTA_DIM, 0.45)
-    );
-    ring.position.set(0, -1.5 - i * 1.3, 0);
-    ring.rotation.x = Math.PI / 2;
-    scene.add(ring);
-  }
-
-  return parts;
+function partRole(name) {
+  if (name.startsWith('wing_left'))     return 'wingL';
+  if (name.startsWith('wing_right'))    return 'wingR';
+  if (name.startsWith('haltere_left'))  return 'haltereL';
+  if (name.startsWith('haltere_right')) return 'haltereR';
+  if (name.startsWith('abdomen'))       return 'abdomen';
+  if (name.startsWith('antenna'))       return 'antenna';
+  return 'static';
 }
 
-export default function FlyBody3D({ state }) {
+const FILES = [
+  'abdomen_1_body','abdomen_1_lower','abdomen_2_body','abdomen_2_lower',
+  'abdomen_3_body','abdomen_3_lower','abdomen_4_body','abdomen_4_lower',
+  'abdomen_5_body','abdomen_5_lower','abdomen_6_body','abdomen_6_lower',
+  'abdomen_7_body','abdomen_7_lower','abdomen_8_body',
+  'antenna_left_black','antenna_left_body',
+  'antenna_right_black','antenna_right_body',
+  'coxa_T1_left_body','coxa_T1_right_body',
+  'coxa_T2_left_body','coxa_T2_right_body',
+  'coxa_T3_left_body','coxa_T3_right_body',
+  'femur_T1_left_body','femur_T1_right_body',
+  'femur_T2_left_body','femur_T2_right_body',
+  'femur_T3_left_body','femur_T3_right_body',
+  'haltere_left_body','haltere_right_body',
+  'haustellum_black','haustellum_body',
+  'head_black','head_body','head_ocelli','head_red',
+  'labrum_left_lower','labrum_right_lower',
+  'rostrum_body','rostrum_bristle-brown',
+  'tarsal_claw_T1_left_brown','tarsal_claw_T1_right_brown',
+  'tarsal_claw_T2_left_brown','tarsal_claw_T2_right_brown',
+  'tarsal_claw_T3_left_brown','tarsal_claw_T3_right_brown',
+  'tarsus_T1_1_left_body','tarsus_T1_1_right_body',
+  'tarsus_T1_2_left_body','tarsus_T1_2_right_body',
+  'tarsus_T1_3_left_body','tarsus_T1_3_right_body',
+  'tarsus_T1_4_left_body','tarsus_T1_4_right_body',
+  'tarsus_T2_1_left_body','tarsus_T2_1_right_body',
+  'tarsus_T2_2_left_body','tarsus_T2_2_right_body',
+  'tarsus_T2_3_left_body','tarsus_T2_3_right_body',
+  'tarsus_T2_4_left_body','tarsus_T2_4_right_body',
+  'tarsus_T3_1_left_body','tarsus_T3_1_right_body',
+  'tarsus_T3_2_left_body','tarsus_T3_2_right_body',
+  'tarsus_T3_3_left_body','tarsus_T3_3_right_body',
+  'tarsus_T3_4_left_body','tarsus_T3_4_right_body',
+  'thorax_black','thorax_body',
+  'tibia_T1_left_body','tibia_T1_right_body',
+  'tibia_T2_left_body','tibia_T2_right_body',
+  'tibia_T3_left_body','tibia_T3_right_body',
+  'wing_left_brown','wing_left_membrane',
+  'wing_right_brown','wing_right_membrane',
+];
+
+export default function FlyBody3D({ state, assetsPath = '/assets' }) {
   const canvasRef  = useRef(null);
   const stateRef   = useRef(state);
   stateRef.current = state;
@@ -185,11 +90,14 @@ export default function FlyBody3D({ state }) {
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 
     const scene  = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 500);
-    camera.position.set(0, 2, 42);
-    camera.lookAt(0, 2, 0);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.001, 50);
+    camera.position.set(0, -0.6, 0);
+    camera.lookAt(0, 0, 0);
 
-    const parts = buildFly(scene);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const lR = new THREE.DirectionalLight(0xffffff, 0.7); lR.position.set(0, -1, 1); scene.add(lR);
+    const lL = new THREE.DirectionalLight(0xffffff, 0.45); lL.position.set(0, 1, 1); scene.add(lL);
+    const lT = new THREE.DirectionalLight(0xffffff, 0.3); lT.position.set(0, 0, 2); scene.add(lT);
 
     function resize() {
       const w = el.clientWidth, h = el.clientHeight;
@@ -201,62 +109,99 @@ export default function FlyBody3D({ state }) {
     const ro = new ResizeObserver(resize);
     ro.observe(el);
 
-    let t = 0, raf;
+    const flyRoot  = new THREE.Group();
+    const wingPivL = new THREE.Group();
+    const wingPivR = new THREE.Group();
+    const halPivL  = new THREE.Group();
+    const halPivR  = new THREE.Group();
 
+    // Sem offset — os OBJs já têm coordenadas absolutas corretas
+    // A rotação anima em torno da origem onde as asas naturalmente se encaixam
+
+    flyRoot.add(wingPivL, wingPivR, halPivL, halPivR);
+    flyRoot.position.z = -0.12; // desloca a mosca para baixo na tela
+    scene.add(flyRoot);
+
+    const parts = { wingL: [], wingR: [], haltereL: [], haltereR: [] };
+    const loader = new OBJLoader();
+
+    FILES.forEach(name => {
+      loader.load(
+        `${assetsPath}/${name}.obj`,
+        (obj) => {
+          const mat  = matForFile(name);
+          const role = partRole(name);
+          obj.traverse(child => { if (child.isMesh) child.material = mat; });
+          obj.scale.setScalar(0.1);
+          if      (role === 'wingL')    { wingPivL.add(obj); parts.wingL.push(obj);    }
+          else if (role === 'wingR')    { wingPivR.add(obj); parts.wingR.push(obj);    }
+          else if (role === 'haltereL') { halPivL.add(obj);  parts.haltereL.push(obj); }
+          else if (role === 'haltereR') { halPivR.add(obj);  parts.haltereR.push(obj); }
+          else                          { flyRoot.add(obj); }
+        },
+        undefined,
+        () => {}
+      );
+    });
+
+    let drag = false, lx = 0, ly = 0;
+    let rotX = 0, rotY = 0;
+
+    const onDown = e => { drag = true; lx = e.clientX; ly = e.clientY; };
+    const onUp   = () => (drag = false);
+    const onMove = e => {
+      if (!drag) return;
+      rotY += (e.clientX - lx) * 0.012;
+      rotX += (e.clientY - ly) * 0.007;
+      rotX  = Math.max(-Math.PI, Math.min(Math.PI, rotX));
+      lx = e.clientX; ly = e.clientY;
+    };
+    el.addEventListener('mousedown', onDown);
+    window.addEventListener('mouseup',   onUp);
+    window.addEventListener('mousemove', onMove);
+
+    let t = 0, raf;
     function frame() {
       raf = requestAnimationFrame(frame);
       t += 0.016;
 
-      const st   = stateRef.current;
-      const mag  = st.mag       ?? 0;
-      const bias = st.fw_bias   ?? 0;
-      const esc  = st.escape_active ?? false;
+      const st  = stateRef.current;
+      const mag = st.mag           ?? 0;
+      const esc = st.escape_active ?? false;
 
-      const wFreq  = 8 + mag * 14;
-      const wAmp   = 0.35 + mag * 0.5;
-      const wAngle = Math.sin(t * wFreq) * wAmp;
+      flyRoot.rotation.x = rotX;
+      flyRoot.rotation.z = rotY;
 
-      if (esc) {
-        parts.wingPivotL.rotation.z =  0.9 + Math.sin(t * 25) * 0.15;
-        parts.wingPivotR.rotation.z = -0.9 - Math.sin(t * 25) * 0.15;
-      } else {
-        parts.wingPivotL.rotation.z =  wAngle;
-        parts.wingPivotR.rotation.z = -wAngle;
-      }
+      const wFreq = esc ? 28 : (8 + mag * 18);
+      const wAmp  = esc ? 1.2 : (0.45 + mag * 0.65);
+      const wSin  = Math.sin(t * wFreq) * wAmp;
 
-      parts.legs.forEach(({ meshes, sx, base }, legIdx) => {
-        const pi = Math.floor(legIdx / 2);
-        const phase = t * (4 + mag * 8) + pi * (Math.PI * 2 / 3) + (sx < 0 ? Math.PI : 0);
-        const lift  = Math.max(0, Math.sin(phase)) * (1.5 + mag * 1.5);
-        const swing = Math.sin(phase) * (0.8 + mag * 0.8);
+      // Asas batem simétricas no eixo X (cima/baixo)
+      // sem rotação Z que as jogava para lados errados
+      wingPivL.rotation.x =  wSin;
+      wingPivR.rotation.x =  wSin;
 
-        const coxa   = base.coxa.clone();
-        const femur  = base.femur.clone().add(new THREE.Vector3(sx * swing * 0.4, lift * 0.6, 0));
-        const tibia  = base.tibia.clone().add(new THREE.Vector3(sx * swing * 0.8, lift, 0));
-        const tarsus = base.tarsus.clone().add(new THREE.Vector3(sx * swing, lift * 0.3, 0));
-
-        [[coxa, femur], [femur, tibia], [tibia, tarsus]].forEach(([a, b], si) => {
-          meshes[si].geo.setFromPoints([a, b]);
-        });
-      });
-
-      scene.rotation.z = bias * -0.15;
-      scene.position.y = Math.sin(t * 1.2) * 0.3;
-      parts.halteres.forEach((h, i) => {
-        h.position.y = 2 + Math.sin(t * wFreq * 0.5 + i * Math.PI) * 0.3;
-      });
+      halPivL.rotation.x = Math.sin(t * wFreq * 0.5 + Math.PI) * 0.3;
+      halPivR.rotation.x = Math.sin(t * wFreq * 0.5)            * 0.3;
 
       renderer.render(scene, camera);
     }
-
     frame();
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); renderer.dispose(); };
-  }, []);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      el.removeEventListener('mousedown', onDown);
+      window.removeEventListener('mouseup',   onUp);
+      window.removeEventListener('mousemove', onMove);
+      renderer.dispose();
+    };
+  }, [assetsPath]);
 
   return (
     <canvas
       ref={canvasRef}
-      style={{ width: '100%', height: '100%', display: 'block' }}
+      style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab' }}
     />
   );
 }

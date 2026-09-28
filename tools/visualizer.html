@@ -110,12 +110,7 @@ body{
   padding:0 16px;font-size:10px;color:var(--text-dim);
 }
 #footer b{color:var(--green)}
-#flash{
-  position:fixed;top:50%;left:25%;transform:translate(-50%,-50%);
-  font-size:20px;font-weight:bold;color:var(--green-bright);
-  text-shadow:0 0 20px var(--green);opacity:0;
-  pointer-events:none;letter-spacing:4px;white-space:nowrap;z-index:99;
-}
+
 </style>
 </head>
 <body>
@@ -220,7 +215,7 @@ body{
   <div>mode <b>FlyWire v783 · biological</b></div>
   <div style="margin-left:auto;color:#1e3a2a">drag brain to rotate</div>
 </div>
-<div id="flash"></div>
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -316,7 +311,7 @@ window.addEventListener('mousemove',e=>{
 // ================================================================
 // LOOP DE ANIMAÇÃO — SEMPRE RODA
 // ================================================================
-let t=0,prevCol=0,flashTimer=0,activeCount=0;
+let t=0, activeCount=0;
 
 function updateNeurons(){
   const bias=state.fw_bias||0;
@@ -366,17 +361,7 @@ function frame(ts){
     if(el)el.className='key'+(pressed.includes(k)?' on':'');
   });
 
-  // Flash coleta
-  const col2=state.collected||0;
-  if(col2>prevCol){flashTimer=1.5;prevCol=col2;}
-  if(flashTimer>0){
-    flashTimer-=.016;
-    const fl=document.getElementById('flash');
-    fl.style.opacity=Math.min(flashTimer,1);
-    fl.textContent=`✓ COLETADO  #${col2}`;
-  } else {
-    document.getElementById('flash').style.opacity=0;
-  }
+ 
 
   // Bias bar
   const bias=state.fw_bias||0;
