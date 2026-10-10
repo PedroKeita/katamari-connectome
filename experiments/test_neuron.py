@@ -1,4 +1,4 @@
-from brain.neurons import LIFNeuron
+from brain.domain.neurons import LIFNeuron
 
 
 neuron = LIFNeuron()

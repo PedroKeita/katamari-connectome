@@ -1,6 +1,6 @@
 from vision.stimuli import Stimulus, StimulusType
 from brain.stimulus_to_input import stimulus_to_inputs
-from brain.reward import RewardCircuit
+from brain.domain.reward import RewardCircuit
 
 
 stimuli = [

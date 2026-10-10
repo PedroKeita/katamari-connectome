@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:           #1a1014;
+  --bg-panel:     #261820;
+  --bg-surface:   #32212a;
+  --border:       rgba(255, 63, 142, 0.18);
+  --border-mid:   rgba(255, 63, 142, 0.32);
+
+  /* Katamari palette */
+  --magenta:      #FF3F8E;
+  --magenta-dim:  #7a1a42;
+  --yellow:       #FFDA00;
+  --yellow-dim:   #7a6600;
+  --orange:       #E8873A;
+  --orange-dim:   #6e3d12;
+  --gold:         #F0C040;
+  --coral:        #FF5A4E;
+  --coral-dim:    #7a2820;
+  --lilac:        #C778DD;
+  --lilac-dim:    #5c3068;
+
+  /* aliases usados pelos componentes existentes */
+  --green:        var(--magenta);
+  --green-dim:    var(--magenta-dim);
+  --green-bright: #ff80b8;
+  --text-dim:     #b08898;
+  --white:        #fff0e8;
+  --red:          var(--coral-dim);
+  --red-bright:   var(--coral);
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--white);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  overflow-x: hidden;
+   font-size: 14px;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--magenta-dim); border-radius: 2px; }

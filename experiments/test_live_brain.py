@@ -1,10 +1,10 @@
 import time
 
 from vision.capture import ScreenCapture
-from vision.detect import detect_items
+from vision.detection.items import detect_items
 from vision.stimuli import Stimulus, StimulusType
 from brain.stimulus_to_input import stimulus_to_inputs
-from brain.reward import RewardCircuit
+from brain.domain.reward import RewardCircuit
 
 
 capture = ScreenCapture()
