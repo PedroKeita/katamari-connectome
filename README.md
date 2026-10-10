@@ -41,9 +41,14 @@ This project wires a real *Drosophila melanogaster* connectome — FlyWire v783,
 │  ┌────▼────────────┐  ┌──────────────────┐  ┌─────────────────┐ │          │
 │  │ FlyWireRunner   │  │  CXRunner        │  │  PCBRunner      │ │          │
 │  │ (Reward+Escape) │  │ (Central Complex)│  │ (Bilateral Intg)│ │          │
-│  │ ~20 Hz thread   │  │  background      │  │  background     │ │          │
+│  │ ~20 Hz thread   │  │  10 Hz thread    │  │  8 Hz thread    │ │          │
 │  └────┬────────────┘  └──────┬───────────┘  └────────┬────────┘ │          │
-│       │                      │                        │          │          │
+│       │                ┌─────▼──────┐                 │          │          │
+│       │                │ PPLRunner  │                 │          │          │
+│       │                │ (Aversive  │                 │          │          │
+│       │                │ dopamine)  │                 │          │          │
+│       │                │ 5 Hz thread│                 │          │          │
+│       │                └─────┬──────┘                 │          │          │
 │       └──────────────────────┴────────────────────────┘          │          │
 │                              │                        ◄──────────┘          │
 │                              ▼                                              │
@@ -190,45 +195,105 @@ data/
 
 ## 🎮 Usage
 
-### Run the connectome controller
+### Common commands
 
 ```bash
-# Standard run — attach to a running Katamari Damacy REROLL window
-python main.py
+# Standard run — capture monitor 1, full FlyWire circuits
+python main.py --monitor 1 --escape
 
-# Debug mode — shows OpenCV HUD with neural activity and detected objects
-python main.py --debug
+# Debug mode — OpenCV HUD with bounding boxes, L/C/R, dopamine, fw_bias
+python main.py --debug --monitor 1 --escape
 
-# Record session — captures video (ffmpeg) + neural data (WebSocket → JSON)
+# Lightweight run — generic LIF only, no FlyWire data loaded
+python main.py --monitor 1 --no-flywire
+
+# Dry run — full pipeline but no keystrokes sent (safe for testing vision/logic)
+python main.py --monitor 1 --escape --dry-run
+
+# Record session — sync video (ffmpeg) + neural data (WebSocket → JSON)
 python tools/record_session.py
-
-# Open real-time neural visualizer in browser
-# Start main.py first, then open:
-visualizer.html
 ```
 
-### Hotkeys (debug mode)
+### CLI flags
 
-| Key     | Action                        |
-|---------|-------------------------------|
-| `Q`     | Quit                          |
-| `P`     | Pause / resume                |
-| `R`     | Reset neural state            |
-| `D`     | Toggle detection overlay      |
+| Flag          | Type    | Default | Description                                                     |
+|---------------|---------|---------|------------------------------------------------------------------|
+| `--monitor`   | `int`   | `2`     | Monitor index to capture (1-based)                              |
+| `--escape`    | flag    | off     | Enable EscapeCircuit (SHIFT+CTRL after 6 s stagnation)         |
+| `--debug`     | flag    | off     | Open OpenCV window with HUD and global hotkeys F1–F4            |
+| `--no-flywire`| flag    | off     | Skip all FlyWire circuits; use generic LIF fallback only        |
+| `--dry-run`   | flag    | off     | Run full pipeline but suppress all keyboard output              |
+| `--fps`       | `int`   | `30`    | Target screen capture framerate                                 |
+| `--dopamine`  | `float` | `1.0`   | Base dopamine multiplier (`1.0` = normal, `2.0` = maximum drive)|
+
+### Hotkeys (debug mode, `--debug`)
+
+| Key   | Action                                 |
+|-------|----------------------------------------|
+| `F1`  | Pause / resume main loop               |
+| `F2`  | Toggle dopamine: 1.0 ↔ 2.0            |
+| `F3`  | Toggle FlyWire circuits on / off       |
+| `F4`  | Quit                                   |
 
 ### WebSocket API
 
-The neural server broadcasts circuit state at 15 Hz on `ws://localhost:8765`. Each frame emits:
+`main.py` starts a neural server at `ws://localhost:8765` broadcasting circuit state at 15 Hz. Each frame emits:
 
 ```json
 {
-  "fw_left": 0.42,
-  "fw_right": 0.38,
-  "cx_heading": 1.57,
-  "ppl_aversion": 0.12,
+  "fw_bias": -0.23,
+  "left": 0.82,
+  "center": 0.61,
+  "right": 0.05,
+  "mag": 0.94,
+  "collected": 9,
+  "reward_spikes": 0.042,
   "escape_active": false,
-  "collections": 14
+  "circuits": {
+    "reward":  { "active": 1840, "total": 22667, "rate": 0.042 },
+    "escape":  { "active": 212,  "total": 212,   "rate": 0.200 },
+    "orient":  { "active": 12,   "total": 265,   "rate": 0.004 }
+  }
 }
+```
+
+| Field | Description |
+|-------|-------------|
+| `fw_bias` | Net lateral bias from FlyWire circuits (negative = left) |
+| `left` / `center` / `right` | Sensory encoder output (0–1) |
+| `mag` | Motor magnitude sent to gamepad |
+| `collected` | Total items collected this session |
+| `reward_spikes` | Mean PAM spike rate |
+| `escape_active` | Whether the escape maneuver is executing |
+| `circuits.*` | Per-circuit active neuron count, total, and mean spike rate |
+
+---
+
+## 🌐 Web Visualizer
+
+The `web/` directory contains a React dashboard that visualizes neural activity in real time: a 3D fly body whose wings beat and legs walk proportional to motor output, a particle brain point cloud, a WASD+IJKL keyboard overlay, and a scrollable scientific reference document.
+
+### Setup
+
+```bash
+cd web
+npm install
+npm start
+# → http://localhost:3000
+```
+
+The visualizer connects to `ws://localhost:8765`. When `main.py` is not running, it switches automatically to a synthetic demo that animates all panels.
+
+### Gameplay video
+
+Place a recording at `web/public/media/gameplay.mp4`. The visualizer runs without it (dark panel).
+
+### Offline playback from a recorded session
+
+```js
+// In web/src/hooks/useSessionData.js, replace the WebSocket with:
+const data = await fetch('/session.json').then(r => r.json());
+// then replay frame-by-frame at 30 FPS
 ```
 
 ---
@@ -241,23 +306,31 @@ katamari-connectome/
 ├── main.py                  # Bootstrap + main loop (~280 effective lines)
 │
 ├── brain/
-│   ├── fw_runner.py         # FlyWireRunner — background thread at ~20 Hz
-│   ├── loaders.py           # Top-level circuit loader (reward/PPL/PCB/CX/visual)
-│   ├── game_state.py        # GameState — all mutable loop state
-│   ├── sensory_encoder.py   # Top-N=5 visual encoder → L / C / R weights
-│   ├── flywire_loader.py    # Parquet + TSV data loader
-│   ├── flywire_circuit.py   # LIF simulation (Shiu et al. 2024 parameters)
-│   ├── visual_loader.py     # R1-6/R7/R8 → L1/L2 → T4/T5 → LPLC2 → DNp01
-│   ├── visual_circuit.py    # 46k-neuron visual system runner
-│   ├── cx_loader.py         # EPG / PEN / PFL3 / hDelta / vDelta / FC → DNs
-│   ├── cx_runner.py         # Central Complex background thread
-│   ├── ppl_loader.py        # PPL → KCs → MBONs aversive circuit
-│   ├── ppl_runner.py        # PPL background thread
-│   ├── pcb_loader.py        # SMP / SLP / SIP / FB / LAL → DNs
-│   ├── pcb_runner.py        # PCB background thread
-│   ├── neural_server.py     # WebSocket server (port 8765, 15 Hz)
-│   ├── session_logger.py    # Per-frame CSV + event CSV
-│   └── reward.py            # Generic LIF fallback
+│   ├── domain/
+│   │   ├── game_state.py        # GameState — all mutable loop state
+│   │   ├── sensory_encoder.py   # Top-N=5 visual encoder → L / C / R weights
+│   │   ├── neurons.py           # LIFNeuron — generic LIF implementation
+│   │   └── reward.py            # RewardCircuit — generic LIF fallback
+│   ├── circuits/
+│   │   ├── flywire.py           # FlyWireCircuit — LIF simulation (Shiu et al. 2024)
+│   │   ├── visual.py            # 46k-neuron visual system (R1-6 → LPLC2 → DNp01)
+│   │   └── connectome.py        # Base connectome circuit utilities
+│   ├── loaders/
+│   │   ├── factory.py           # Top-level loader — builds all circuits from parquet/TSV
+│   │   ├── flywire.py           # Parquet + TSV data loader (reward / escape / orient)
+│   │   ├── visual.py            # R1-6/R7/R8 → L1/L2 → T4/T5 → LPLC2 → DNp01
+│   │   ├── cx.py                # EPG / PEN / PFL3 / hDelta / vDelta / FC → DNs
+│   │   ├── ppl.py               # PPL → KCs → MBONs aversive circuit
+│   │   └── pcb.py               # SMP / SLP / SIP / FB / LAL → DNs
+│   ├── runners/
+│   │   ├── flywire.py           # FlyWireRunner — background thread at ~20 Hz
+│   │   ├── cx.py                # Central Complex background thread at 10 Hz
+│   │   ├── ppl.py               # PPL background thread at 5 Hz
+│   │   └── pcb.py               # PCB background thread at 8 Hz
+│   └── runtime/
+│       ├── neural_server.py     # WebSocket server (port 8765, 15 Hz)
+│       ├── session_logger.py    # Per-frame CSV + event CSV
+│       └── neural_viz.py        # Neural visualization utilities
 │
 ├── vision/
 │   ├── capture.py           # ScreenCapture via mss (30 fps)
@@ -274,7 +347,28 @@ katamari-connectome/
 ├── tools/
 │   └── record_session.py    # Sync video (ffmpeg) + neural data (WebSocket → JSON)
 │
-├── visualizer.html          # Real-time neural activity dashboard (WebSocket)
+├── visualizer.html          # Standalone single-file neural dashboard (WebSocket)
+│
+├── web/                     # React visualizer — 3D fly body + brain point cloud
+│   ├── src/
+│   │   ├── App.jsx          # Root — 100vh visualizer + scrollable science doc
+│   │   ├── hooks/
+│   │   │   └── useSessionData.js  # WebSocket client + synthetic demo fallback
+│   │   └── components/
+│   │       ├── Header.jsx         # Top bar — title + WS connection status
+│   │       ├── Footer.jsx         # Bottom bar — magnitude / fw_bias / mode
+│   │       ├── VideoPanel.jsx     # Left panel — gameplay video + brain overlay
+│   │       ├── BrainCanvas.jsx    # Three.js particle brain point cloud
+│   │       ├── FlyPanel.jsx       # Right panel — 3D fly + keyboard + bias bar
+│   │       ├── FlyBody3D.jsx      # Three.js anatomical fly rig (wings / legs / body lean)
+│   │       ├── Keyboard.jsx       # WASD + IJKL + CTRL + SHIFT overlay
+│   │       ├── BiasBar.jsx        # Lateral bias bar + L/C/R stats
+│   │       ├── CollectFlash.jsx   # Collection flash overlay
+│   │       └── ScienceSections.jsx # Scrollable scientific reference (8 sections)
+│   └── public/
+│       └── media/
+│           └── gameplay.mp4       # Optional gameplay recording (not in repo)
+│
 ├── data/                    # FlyWire connectome files (not in repo — see Installation)
 └── requirements.txt
 ```
