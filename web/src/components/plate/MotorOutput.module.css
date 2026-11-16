@@ -1,0 +1,172 @@
+.motor {
+  display: grid;
+  gap: var(--s-4);
+  padding: var(--s-3) 0 var(--s-2);
+}
+
+/* Keyboard ─────────────────────────────────────────────── */
+
+.keyboard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s-4) var(--s-5);
+}
+
+.cluster, .mods {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.keys {
+  display: grid;
+  grid-template-columns: repeat(3, var(--key, 32px));
+  gap: 4px;
+}
+
+.mods { gap: 4px; }
+
+.key {
+  display: grid;
+  place-items: center;
+  width: var(--key, 32px);
+  height: var(--key, 32px);
+  border: 1px solid var(--rule-2);
+  border-bottom-width: 2px;
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  font-family: var(--f-mono);
+  font-size: var(--t-micro);
+  color: var(--paper-3);
+  transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1), transform var(--dur-1);
+}
+.wide { width: 64px; height: 26px; }
+
+.key[data-on] {
+  background: var(--magenta);
+  border-color: var(--magenta);
+  color: var(--ink-1);
+  font-weight: 600;
+  transform: translateY(1px);
+}
+.key[data-on][data-escape] { background: var(--coral); border-color: var(--coral); }
+
+.clusterLabel {
+  font-size: var(--t-micro);
+  color: var(--paper-3);
+}
+.clusterLabel[data-alert] { color: var(--coral); }
+
+/* Signals ──────────────────────────────────────────────── */
+
+.signals {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s-5);
+  align-items: end;
+}
+
+.fieldGroup {
+  display: grid;
+  grid-template-columns: repeat(3, 28px);
+  column-gap: 6px;
+  row-gap: var(--s-1);
+}
+.groupLabel {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  font-size: var(--t-micro);
+  color: var(--paper-3);
+}
+
+.field { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.fieldTrack {
+  position: relative;
+  width: 100%;
+  height: 56px;
+  background: var(--ink-2);
+  overflow: hidden;
+}
+.fieldFill {
+  position: absolute;
+  inset: 0;
+  background: var(--yellow);
+  transform-origin: bottom;
+  transition: transform 90ms linear;
+}
+.fieldVal { font-size: var(--t-micro); color: var(--paper-2); }
+.fieldLabel { font-size: var(--t-micro); color: var(--paper-3); }
+
+.meters { display: grid; gap: var(--s-3); }
+
+.meterHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--t-micro);
+  color: var(--paper-3);
+  margin-bottom: 6px;
+}
+.meterVal { color: var(--paper); font-size: var(--t-small); }
+
+.biasTrack, .driveTrack {
+  position: relative;
+  height: 6px;
+  background: var(--ink-2);
+}
+.biasMid {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  bottom: -4px;
+  width: 1px;
+  background: var(--paper-3);
+}
+.biasFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 50%;
+  transform-origin: left center;
+  background: var(--magenta);
+  opacity: 0.45;
+  transition: transform 90ms linear;
+}
+.biasFill[data-side='l'] { background: var(--lilac); }
+.needleRail {
+  position: absolute;
+  inset: -5px 0;
+  transition: transform 90ms linear;
+}
+.needle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--paper);
+}
+
+.meterScale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--paper-3);
+}
+
+.driveFill {
+  position: absolute;
+  inset: 0;
+  background: var(--orange);
+  transform-origin: left;
+  transition: transform 90ms linear;
+}
+
+@media (max-width: 380px) {
+  .motor { --key: 28px; }
+  .signals { grid-template-columns: 1fr; }
+}

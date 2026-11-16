@@ -1,0 +1,169 @@
+/* Pipeline — an editorial ledger: source in the gutter, stage, body, live value. */
+
+.pipeline {
+  list-style: none;
+  margin-top: var(--s-8);
+  counter-reset: step;
+}
+
+.step {
+  position: relative;
+  align-items: baseline;
+  padding: var(--s-5) 0;
+  border-top: 1px solid var(--rule);
+}
+.step:last-child { border-bottom: 1px solid var(--rule); }
+
+.file {
+  grid-column: 1 / span 3;
+  justify-self: end;
+  text-align: right;
+  font-family: var(--f-mono);
+  font-size: var(--t-micro);
+  color: var(--paper-3);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.file:hover { color: var(--magenta); text-decoration: underline; }
+
+.stage {
+  grid-column: 4 / span 2;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  color: var(--paper);
+}
+.idx { font-size: var(--t-micro); color: var(--magenta); }
+
+.stepBody {
+  grid-column: 6 / span 5;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--paper-2);
+}
+
+.live {
+  grid-column: 11 / span 2;
+  justify-self: end;
+  text-align: right;
+}
+
+.signal {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-micro);
+  color: var(--yellow);
+  white-space: nowrap;
+}
+.fact { font-size: var(--t-micro); color: var(--paper-3); white-space: nowrap; }
+
+.signalDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 6px var(--yellow);
+}
+
+.threads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  list-style: none;
+}
+.threads li {
+  display: inline-flex;
+  gap: var(--s-2);
+  padding: 3px var(--s-2);
+  border-left: 2px solid var(--c);
+  background: var(--ink-2);
+  font-size: var(--t-micro);
+  color: var(--paper-2);
+}
+.threads li .mono, .threads li :global(.mono) { color: var(--paper-3); }
+
+/* LIF ─────────────────────────────────────────────────── */
+
+.lif { row-gap: var(--s-6); align-items: start; }
+
+.lifText {
+  grid-column: 4 / span 4;
+  font-size: 0.9375rem;
+  color: var(--paper-2);
+}
+
+.eq {
+  margin: var(--s-5) 0;
+  padding: var(--s-4);
+  background: var(--ink-0);
+  border-left: 2px solid var(--magenta);
+  font-size: var(--t-small);
+  line-height: 1.8;
+  color: var(--paper);
+  overflow-x: auto;
+}
+
+.params { width: 100%; border-collapse: collapse; font-size: var(--t-small); }
+.params th, .params td {
+  padding: var(--s-2) var(--s-3) var(--s-2) 0;
+  border-top: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: baseline;
+}
+.params th { color: var(--paper); font-weight: 400; white-space: nowrap; }
+.params td:nth-child(2) { color: var(--yellow); white-space: nowrap; }
+.params td:last-child { color: var(--paper-3); }
+
+.trace { grid-column: 8 / span 5; position: sticky; top: calc(var(--masthead-h) + var(--s-5)); }
+.traceCanvas {
+  aspect-ratio: 5 / 3;
+  background: var(--ink-0);
+  border-top: 1px solid var(--rule-2);
+}
+.traceCanvas canvas { width: 100%; height: 100%; }
+.trace figcaption {
+  margin-top: var(--s-3);
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--paper-3);
+}
+.figLabel {
+  font-family: var(--f-mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--paper);
+  margin-right: var(--s-1);
+}
+
+.bridge {
+  margin-top: var(--s-8);
+  margin-left: calc((100% + var(--s-5)) * 3 / 12);
+  font-family: var(--f-display);
+  font-size: var(--t-h3);
+  color: var(--paper-2);
+}
+.bridge a { color: var(--magenta); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 6px; }
+
+@media (max-width: 1180px) {
+  .stage { grid-column: 4 / span 3; }
+  .stepBody { grid-column: 7 / span 6; }
+  .live { grid-column: 7 / span 6; justify-self: start; text-align: left; margin-top: var(--s-2); }
+  .lifText { grid-column: 4 / span 9; }
+  .trace { grid-column: 4 / span 9; position: static; }
+}
+
+@media (max-width: 900px) {
+  .step { row-gap: var(--s-2); }
+  .file, .stage, .stepBody, .live { grid-column: 1; justify-self: start; text-align: left; }
+  .file { order: 3; }
+  .live { order: 4; margin-top: 0; }
+  .lifText, .trace { grid-column: 1; }
+  .bridge { margin-left: 0; }
+}

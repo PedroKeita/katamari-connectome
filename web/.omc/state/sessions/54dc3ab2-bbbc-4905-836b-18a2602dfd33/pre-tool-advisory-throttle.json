@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "entries": {
+    "466399dafa2d20f60587180bad0a07358eb7f2bce724df0ff682f038ad33f5ad": {
+      "last_emitted_at_ms": 1794870136104,
+      "message": "Read multiple files in parallel when possible for faster analysis."
+    },
+    "79a93d4a2f8f50b95f852280616242fee1855dc99a3c75211917f55e72e95fae": {
+      "last_emitted_at_ms": 1794870077026,
+      "message": "Use parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests)."
+    },
+    "445ed27a3872b681d98190bae61ccb84954e1bc4e140df5370be958dee776b3a": {
+      "last_emitted_at_ms": 1794870071816,
+      "message": "Verify changes work after editing. Test functionality before marking complete."
+    },
+    "fbc8413e410c44a37c16b470f248d2137bb89175afc52f201834893cd179624f": {
+      "last_emitted_at_ms": 1794869304221,
+      "message": "Spawning agent: web-fetch (inherit) | Task: Verify Nature citation URLs"
+    }
+  },
+  "updated_at": "2026-11-16T23:02:16.104Z"
+}
