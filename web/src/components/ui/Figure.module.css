@@ -9,18 +9,29 @@
 }
 
 .head {
+  position: relative;
   display: flex;
   align-items: baseline;
   gap: var(--s-3);
   padding: var(--s-2) var(--s-4) var(--s-2) 0;
-  border-top: 1px solid var(--rule-2);
   font-family: var(--f-mono);
   font-size: var(--t-micro);
   letter-spacing: 0.04em;
   color: var(--paper-3);
 }
 
+.rule {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--rule-2);
+  transform-origin: left center;
+}
+
 .letter {
+  display: inline-block;
   font-family: var(--f-display);
   font-size: 1.375rem;
   line-height: 1;
@@ -47,6 +58,16 @@
   position: relative;
   flex: 1;
   min-height: 0;
+}
+
+/* Veil that lifts off the body on entrance (transform only). */
+.shutter {
+  position: absolute;
+  inset: -1px;
+  z-index: 3;
+  background: var(--ink-1);
+  transform-origin: bottom center;
+  pointer-events: none;
 }
 
 .caption {

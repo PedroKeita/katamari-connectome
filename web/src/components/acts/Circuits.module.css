@@ -23,7 +23,8 @@
   color: var(--paper-3);
 }
 .table tbody tr { transition: background var(--dur-1); }
-.table tbody tr:hover { background: color-mix(in srgb, var(--c) 6%, transparent); }
+.table tbody tr:hover,
+.table tbody tr[data-focus] { background: color-mix(in srgb, var(--c) 6%, transparent); }
 
 .name {
   font-family: var(--f-display);
@@ -93,6 +94,7 @@
   height: 10px;
 }
 .strip span {
+  transform-origin: left center;
   flex-basis: 0;
   min-width: 3px;          /* keeps the smallest circuits visible; caption gives exact numbers */
   background: var(--c);

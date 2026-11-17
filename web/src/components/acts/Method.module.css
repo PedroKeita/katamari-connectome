@@ -1,8 +1,9 @@
 /* Pipeline — an editorial ledger: source in the gutter, stage, body, live value. */
 
+.pipelineWrap { margin-top: var(--s-8); }
+
 .pipeline {
   list-style: none;
-  margin-top: var(--s-8);
   counter-reset: step;
 }
 
@@ -18,6 +19,7 @@
   grid-column: 1 / span 3;
   justify-self: end;
   text-align: right;
+  padding-right: 10px;   /* clear of the axon node */
   font-family: var(--f-mono);
   font-size: var(--t-micro);
   color: var(--paper-3);
@@ -79,6 +81,7 @@
 }
 .threads li {
   display: inline-flex;
+  align-items: center;
   gap: var(--s-2);
   padding: 3px var(--s-2);
   border-left: 2px solid var(--c);
@@ -87,6 +90,17 @@
   color: var(--paper-2);
 }
 .threads li .mono, .threads li :global(.mono) { color: var(--paper-3); }
+.beat {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c);
+}
+.slowed {
+  margin-top: var(--s-2);
+  font-size: var(--t-micro);
+  color: var(--paper-3);
+}
 
 /* LIF ─────────────────────────────────────────────────── */
 
@@ -98,11 +112,19 @@
   color: var(--paper-2);
 }
 
+.eqWrap { position: relative; margin: var(--s-5) 0; }
+.eqRule {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--magenta);
+  transform-origin: top center;
+}
 .eq {
-  margin: var(--s-5) 0;
-  padding: var(--s-4);
+  padding: var(--s-4) var(--s-4) var(--s-4) calc(var(--s-4) + 2px);
   background: var(--ink-0);
-  border-left: 2px solid var(--magenta);
   font-size: var(--t-small);
   line-height: 1.8;
   color: var(--paper);
@@ -116,7 +138,21 @@
   text-align: left;
   vertical-align: baseline;
 }
-.params th { color: var(--paper); font-weight: 400; white-space: nowrap; }
+.params th { position: relative; color: var(--paper); font-weight: 400; white-space: nowrap; }
+/* Flash behind the V_thresh label when Fig. E spikes. */
+.flash {
+  position: absolute;
+  inset: 4px -6px 4px -6px;
+  background: rgba(255, 218, 0, 0.22);
+  border-left: 2px solid var(--yellow);
+  pointer-events: none;
+  opacity: 0;
+  animation: thresh-flash 450ms ease-out;
+}
+@keyframes thresh-flash {
+  from { opacity: 0.9; }
+  to { opacity: 0; }
+}
 .params td:nth-child(2) { color: var(--yellow); white-space: nowrap; }
 .params td:last-child { color: var(--paper-3); }
 

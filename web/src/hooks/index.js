@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { subscribe, getSnapshot } from '../data/sessionStore';
 
 /**
@@ -9,45 +9,8 @@ export function useSession(selector) {
   return useSyncExternalStore(subscribe, () => selector(getSnapshot()));
 }
 
-const RM_QUERY = '(prefers-reduced-motion: reduce)';
-
-export function useReducedMotion() {
-  const [reduced, setReduced] = useState(
-    () => typeof window !== 'undefined' && !!window.matchMedia?.(RM_QUERY).matches,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia?.(RM_QUERY);
-    if (!mq) return undefined;
-    const on = () => setReduced(mq.matches);
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, []);
-  return reduced;
-}
-
-/** Adds `.is-in` once an element scrolls into view (CSS handles the motion). */
-export function useReveal() {
-  const ref = useRef(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !('IntersectionObserver' in window)) {
-      el?.classList.add('is-in');
-      return undefined;
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          el.classList.add('is-in');
-          io.disconnect();
-        }
-      },
-      { rootMargin: '0px 0px -10% 0px' },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  return ref;
-}
+/** Single source of truth for reduced motion: Motion's own hook. */
+export { useReducedMotion } from '../motion/api';
 
 /** Which of the given section ids is currently in the reading band. */
 export function useActiveSection(ids) {

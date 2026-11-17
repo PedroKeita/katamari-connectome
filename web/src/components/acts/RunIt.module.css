@@ -1,9 +1,12 @@
+.stepsWrap { margin-top: var(--s-8); }
+
 .steps {
   grid-column: 4 / span 9;
-  margin-top: var(--s-8);
   list-style: none;
 }
 .steps li {
+  position: relative;
+  --axon-x: -12px;          /* axon runs in the gap left of the steps column */
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr);
   gap: var(--s-5);
@@ -26,6 +29,7 @@
 .stepTitle :global(.mono) { font-size: var(--t-micro); color: var(--magenta); }
 
 .code {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--ink-0);
@@ -51,6 +55,17 @@
   font-size: 0.75rem;
   line-height: 1.7;
   color: var(--paper-2);
+}
+
+.copySlot { display: inline-grid; overflow: hidden; }
+.copySlot > * { grid-area: 1 / 1; }
+
+.copyFlash {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--yellow);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .copy {
@@ -149,7 +164,23 @@
   line-height: 1.3;
   color: var(--paper);
 }
-.refTitle a { text-decoration-color: var(--rule-2); }
+.refTitle a {
+  display: inline-block;
+  text-decoration-color: var(--rule-2);
+  transition: transform var(--dur-2) var(--ease-out), color var(--dur-1);
+}
+.refTitle a::after {
+  content: '↗';
+  display: inline-block;
+  margin-left: 0.3em;
+  opacity: 0;
+  transform: translate(-4px, 2px);
+  transition: opacity var(--dur-2), transform var(--dur-2) var(--ease-out);
+}
+.refTitle a:hover,
+.refTitle a:focus-visible { transform: translateX(4px); }
+.refTitle a:hover::after,
+.refTitle a:focus-visible::after { opacity: 1; transform: none; }
 .refNote { grid-area: note; font-size: var(--t-small); color: var(--paper-3); }
 
 @media (max-width: 1180px) {
@@ -159,6 +190,7 @@
 
 @media (max-width: 900px) {
   .steps, .flags, .schema, .refs { grid-column: 1; }
+  .steps li { --axon-x: calc(-1 * var(--gutter) / 2); }
   .refs li {
     grid-template-columns: 2.5rem minmax(0, 1fr);
     grid-template-areas: 'n title' 'n meta' 'n note';

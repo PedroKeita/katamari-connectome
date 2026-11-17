@@ -1,0 +1,367 @@
+{
+  "version": 1,
+  "jobId": "897268e3-05e3-42c2-ac77-065ce3e92552",
+  "sessionId": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+  "scopeKey": "9d4a0f159ba7746ede30dff14f47b8dc33ddd7e0e17830b9d7c877680fee4f43",
+  "revision": 74,
+  "createdAt": "2026-11-16T22:40:01.308Z",
+  "updatedAt": "2026-11-16T22:40:38.399Z",
+  "producerGraceExpiresAt": "2026-11-16T22:40:31.309Z",
+  "bestEffortDeadlineAt": "2026-11-16T22:41:24.309Z",
+  "producers": {
+    "core": {
+      "state": "sealed",
+      "intentKey": "b9e8d765a5bfdbf251ef287274d634640faf2a1950979b528e31c08f406cb67f",
+      "payloadDigest": "b9e8d765a5bfdbf251ef287274d634640faf2a1950979b528e31c08f406cb67f",
+      "sealedAt": "2026-11-16T22:40:33.258Z",
+      "sealedBy": "recovery"
+    },
+    "wiki": {
+      "state": "no-op",
+      "sealedAt": "2026-11-16T22:40:01.335Z",
+      "sealedBy": "wiki-producer"
+    }
+  },
+  "actions": {
+    "foreground-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "completed",
+      "attempts": 1,
+      "idempotencyKey": "edf5608c94eef28039a120f919477d0bb75db8a4a3b817d4f4d0968d7c5d2852",
+      "payload": {
+        "transcriptPath": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+        "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+        "reason": "other",
+        "input": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "transcript_path": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+          "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+          "scratchpad_dir": "C:\\Users\\T-GAMER\\AppData\\Local\\Temp\\claude\\01e66aa343198bca\\ce052b70-e6e5-4ace-9b7a-334444931a28\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {},
+        "metrics": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "ended_at": "2026-11-16T22:40:32.330Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        }
+      },
+      "budgetMs": 9000,
+      "claimedAt": "2026-11-16T22:40:31.744Z",
+      "runner": {
+        "attempt": 1,
+        "runnerNonce": "04acd64e-c44f-41f4-b38b-8924b69fc60c",
+        "phase": "terminal",
+        "deadlineAt": "2026-11-16T22:40:41.313Z"
+      },
+      "lastOutcomeCode": "completed",
+      "completedAt": "2026-11-16T22:40:33.232Z"
+    },
+    "wiki-capture": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "completed",
+      "attempts": 0,
+      "idempotencyKey": "654d9a7977136e79f6cebe1584ddbdc93b849d7f6778796600e95f8e9f44f95f",
+      "payload": {
+        "transcriptPath": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+        "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+        "reason": "other",
+        "input": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "transcript_path": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+          "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+          "scratchpad_dir": "C:\\Users\\T-GAMER\\AppData\\Local\\Temp\\claude\\01e66aa343198bca\\ce052b70-e6e5-4ace-9b7a-334444931a28\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {}
+      },
+      "budgetMs": 9000,
+      "completedAt": "2026-11-16T22:40:01.335Z"
+    },
+    "team-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "completed",
+      "attempts": 1,
+      "idempotencyKey": "e40ea9cf22bc8cd0e4c52f319bcf4f88c0d878611fad2ccc81198fb89d8b1208",
+      "payload": {
+        "transcriptPath": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+        "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+        "reason": "other",
+        "input": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "transcript_path": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+          "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+          "scratchpad_dir": "C:\\Users\\T-GAMER\\AppData\\Local\\Temp\\claude\\01e66aa343198bca\\ce052b70-e6e5-4ace-9b7a-334444931a28\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {},
+        "metrics": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "ended_at": "2026-11-16T22:40:32.330Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        }
+      },
+      "budgetMs": 9000,
+      "claimedAt": "2026-11-16T22:40:33.333Z",
+      "runner": {
+        "attempt": 1,
+        "runnerNonce": "4a1e0b84-8e23-45dc-9a94-c90dce310457",
+        "phase": "terminal",
+        "deadlineAt": "2026-11-16T22:40:41.313Z"
+      },
+      "lastOutcomeCode": "completed",
+      "completedAt": "2026-11-16T22:40:33.980Z"
+    },
+    "python-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "completed",
+      "attempts": 1,
+      "idempotencyKey": "64b9dd5ee9e1cd94ff408b841cf248196c32fba63c65e080467b0a6ced39658d",
+      "payload": {
+        "transcriptPath": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+        "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+        "reason": "other",
+        "input": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "transcript_path": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+          "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+          "scratchpad_dir": "C:\\Users\\T-GAMER\\AppData\\Local\\Temp\\claude\\01e66aa343198bca\\ce052b70-e6e5-4ace-9b7a-334444931a28\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {},
+        "metrics": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "ended_at": "2026-11-16T22:40:32.330Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        }
+      },
+      "budgetMs": 9000,
+      "claimedAt": "2026-11-16T22:40:34.038Z",
+      "runner": {
+        "attempt": 1,
+        "runnerNonce": "c3932ef1-dc4f-464b-83c6-4ea113123563",
+        "phase": "terminal",
+        "deadlineAt": "2026-11-16T22:40:41.313Z"
+      },
+      "lastOutcomeCode": "completed",
+      "completedAt": "2026-11-16T22:40:34.689Z"
+    },
+    "reply-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "completed",
+      "attempts": 1,
+      "idempotencyKey": "15b017293c57d12daf49ad06a8ead52d62d9c638fd7d2b5829d1a63b54d71b69",
+      "payload": {
+        "transcriptPath": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+        "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+        "reason": "other",
+        "input": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "transcript_path": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+          "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+          "scratchpad_dir": "C:\\Users\\T-GAMER\\AppData\\Local\\Temp\\claude\\01e66aa343198bca\\ce052b70-e6e5-4ace-9b7a-334444931a28\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {}
+      },
+      "budgetMs": 9000,
+      "claimedAt": "2026-11-16T22:40:34.751Z",
+      "runner": {
+        "attempt": 1,
+        "runnerNonce": "2028a57c-4b3a-46d4-947f-fb71a49d5dcd",
+        "phase": "terminal",
+        "deadlineAt": "2026-11-16T22:40:41.313Z"
+      },
+      "lastOutcomeCode": "completed",
+      "completedAt": "2026-11-16T22:40:35.416Z"
+    },
+    "callback": {
+      "class": "best-effort",
+      "phase": "deferred-best-effort",
+      "status": "completed",
+      "attempts": 1,
+      "idempotencyKey": "8288aa227c7e258570e15242d3aabf250302f3b49ff4ca12bc6c094b15935762",
+      "payload": {
+        "transcriptPath": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+        "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+        "reason": "other",
+        "input": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "transcript_path": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+          "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+          "scratchpad_dir": "C:\\Users\\T-GAMER\\AppData\\Local\\Temp\\claude\\01e66aa343198bca\\ce052b70-e6e5-4ace-9b7a-334444931a28\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {},
+        "metrics": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "ended_at": "2026-11-16T22:40:32.330Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        }
+      },
+      "budgetMs": 2000,
+      "claimedAt": "2026-11-16T22:40:35.473Z",
+      "runner": {
+        "attempt": 1,
+        "runnerNonce": "97dfc2ef-9a08-4b8c-9390-c20fc9a1add0",
+        "phase": "terminal",
+        "deadlineAt": "2026-11-16T22:40:41.313Z"
+      },
+      "lastOutcomeCode": "completed",
+      "completedAt": "2026-11-16T22:40:36.106Z"
+    },
+    "notification": {
+      "class": "best-effort",
+      "phase": "deferred-best-effort",
+      "status": "completed",
+      "attempts": 1,
+      "idempotencyKey": "827166e8ce84b4fe6ab98a14031bbd200cc4a012e71a9c5a5279584f8bb2fa24",
+      "payload": {
+        "transcriptPath": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+        "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+        "reason": "other",
+        "input": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "transcript_path": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+          "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+          "scratchpad_dir": "C:\\Users\\T-GAMER\\AppData\\Local\\Temp\\claude\\01e66aa343198bca\\ce052b70-e6e5-4ace-9b7a-334444931a28\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {},
+        "metrics": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "ended_at": "2026-11-16T22:40:32.330Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        }
+      },
+      "budgetMs": 2000,
+      "claimedAt": "2026-11-16T22:40:36.166Z",
+      "runner": {
+        "attempt": 1,
+        "runnerNonce": "afff2814-7e5d-4761-9acb-8911085845b0",
+        "phase": "terminal",
+        "deadlineAt": "2026-11-16T22:40:41.313Z"
+      },
+      "lastOutcomeCode": "completed",
+      "completedAt": "2026-11-16T22:40:36.814Z"
+    },
+    "openclaw": {
+      "class": "best-effort",
+      "phase": "deferred-best-effort",
+      "status": "completed",
+      "attempts": 1,
+      "idempotencyKey": "1f084c84aba3589927889b46ba6dbf9ec938492ffc991ae56a2bb90d9560f5e1",
+      "payload": {
+        "transcriptPath": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+        "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+        "reason": "other",
+        "input": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "transcript_path": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+          "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+          "scratchpad_dir": "C:\\Users\\T-GAMER\\AppData\\Local\\Temp\\claude\\01e66aa343198bca\\ce052b70-e6e5-4ace-9b7a-334444931a28\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {},
+        "metrics": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "ended_at": "2026-11-16T22:40:32.330Z",
+          "reason": "other",
+          "agents_spawned": 0,
+          "agents_completed": 0,
+          "modes_used": []
+        }
+      },
+      "budgetMs": 2000,
+      "claimedAt": "2026-11-16T22:40:36.873Z",
+      "runner": {
+        "attempt": 1,
+        "runnerNonce": "62e2cd90-8aba-4f0d-9f5a-4af4088b9083",
+        "phase": "terminal",
+        "deadlineAt": "2026-11-16T22:40:41.313Z"
+      },
+      "lastOutcomeCode": "completed",
+      "completedAt": "2026-11-16T22:40:37.520Z"
+    },
+    "spawn-next": {
+      "class": "best-effort",
+      "phase": "deferred-best-effort",
+      "status": "completed",
+      "attempts": 1,
+      "idempotencyKey": "69a41880586f614f41b8cbbaf88b5eb9cf4d4a6242f6efd02c487b01a226b1d7",
+      "payload": {
+        "transcriptPath": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+        "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+        "reason": "other",
+        "input": {
+          "session_id": "ce052b70-e6e5-4ace-9b7a-334444931a28",
+          "transcript_path": "C:\\Users\\T-GAMER\\.claude\\projects\\C--Users-T-GAMER-katamari-connectome\\ce052b70-e6e5-4ace-9b7a-334444931a28.jsonl",
+          "cwd": "C:\\Users\\T-GAMER\\katamari-connectome",
+          "scratchpad_dir": "C:\\Users\\T-GAMER\\AppData\\Local\\Temp\\claude\\01e66aa343198bca\\ce052b70-e6e5-4ace-9b7a-334444931a28\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {}
+      },
+      "budgetMs": 2000,
+      "claimedAt": "2026-11-16T22:40:37.582Z",
+      "runner": {
+        "attempt": 1,
+        "runnerNonce": "7d2b815c-5011-4b4e-81f1-6dbba6936a7e",
+        "phase": "terminal",
+        "deadlineAt": "2026-11-16T22:40:41.313Z"
+      },
+      "lastOutcomeCode": "completed",
+      "completedAt": "2026-11-16T22:40:38.288Z"
+    }
+  },
+  "owner": null,
+  "phase": "complete",
+  "recoverableFailure": {
+    "reason": "actions-settled",
+    "releasedAt": "2026-11-16T22:40:38.348Z",
+    "ownerNonce": "5cb405d8-3a0f-4fe2-b8ef-9c7da03b33a0"
+  },
+  "completion": {
+    "completedAt": "2026-11-16T22:40:38.348Z",
+    "terminalDigest": "5960469f3882db843ea122ead1343336493b4eff4f44b798a0ec56e8e1a3b6bb",
+    "terminalRevision": 73
+  }
+}

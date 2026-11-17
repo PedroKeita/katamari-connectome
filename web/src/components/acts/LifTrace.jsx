@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { getSnapshot } from '../../data/sessionStore';
 import { createRenderGate } from '../../three/renderGate';
 import { LIF } from '../../content/project';
+import { emit } from '../../data/events';
 
 const WINDOW_MS = 400;       // visible history
 const SIM_PER_FRAME = 4;     // ms of simulated time per animation frame (≈ ¼ speed)
@@ -60,7 +61,9 @@ export default function LifTrace({ reducedMotion }) {
         // Rheobase is 0.35 (V∞ = V_rest + I·τ_m must exceed −45 mV): silent at zero drive,
         // firing faster as drive rises.
         const I = 0.3 + mag * 0.4 + noise() * 0.1;
-        trace[head] = stepLif(neuron, I).v;
+        const step = stepLif(neuron, I);
+        trace[head] = step.v;
+        if (step.spike) emit('lif:spike'); // lets the V_thresh row in the table react
         head = (head + 1) % WINDOW_MS;
       }
     }

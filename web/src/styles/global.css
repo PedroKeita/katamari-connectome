@@ -158,13 +158,6 @@ code, kbd, pre, samp { font-family: var(--f-mono); }
 }
 .skip-link:focus { top: var(--s-3); color: var(--ink-1); }
 
-/* Reveal-on-scroll (progressive; content visible without JS) */
-.reveal { opacity: 1; transform: none; }
-.js .reveal:not(.is-in) { opacity: 0; transform: translateY(16px); }
-.js .reveal {
-  transition: opacity var(--dur-3) var(--ease-out), transform var(--dur-3) var(--ease-out);
-}
-
 @media (prefers-reduced-motion: reduce) {
   html, html:focus-within { scroll-behavior: auto; }
   *, *::before, *::after {
@@ -172,5 +165,4 @@ code, kbd, pre, samp { font-family: var(--f-mono); }
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-  .js .reveal:not(.is-in) { opacity: 1; transform: none; }
 }

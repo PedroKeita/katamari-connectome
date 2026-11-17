@@ -2,10 +2,15 @@
    12 columns; the first three are the gutter (numerals, marginalia). */
 
 .act {
+  position: relative;
   max-width: var(--maxw);
   margin: 0 auto;
   padding: var(--s-9) var(--gutter) var(--s-8);
-  border-top: 1px solid var(--rule-2);
+}
+
+/* The sticky ActRing replaces the static kicker where the gutter is wide. */
+@media (min-width: 1240px) {
+  .kicker { visibility: hidden; }
 }
 
 .head,
@@ -60,6 +65,8 @@
 .subhead { margin: var(--s-9) 0 var(--s-5); align-items: baseline; }
 .subNote {
   grid-column: 1 / span 3;
+  justify-self: end;
+  text-align: right;
   font-family: var(--f-mono);
   font-size: var(--t-micro);
   color: var(--paper-3);
@@ -98,6 +105,7 @@
   }
   .numeral { font-size: 2.25rem; }
   .title, .lede, .h3, .subNote, .body, .prose, .gutter { grid-column: 1; }
+  .subNote { justify-self: start; text-align: left; }
   .subhead { margin-top: var(--s-8); }
   .subNote { margin-bottom: var(--s-2); }
 }

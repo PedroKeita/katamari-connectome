@@ -47,3 +47,10 @@
   .detail { display: none; }
   .chip { padding: 0 var(--s-2); }
 }
+
+.swap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.chip { overflow: hidden; }

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { start } from './data/sessionStore';
+import MotionProvider from './motion/MotionProvider';
 import Masthead from './components/layout/Masthead';
 import SiteFooter from './components/layout/SiteFooter';
 import Plate from './components/plate/Plate';
@@ -16,7 +17,7 @@ export default function App() {
   useEffect(() => start(), []);
 
   return (
-    <>
+    <MotionProvider>
       <a className="skip-link" href="#main">Skip to content</a>
       <div id="top" />
       <Masthead />
@@ -27,6 +28,6 @@ export default function App() {
         <RunIt />
       </main>
       <SiteFooter />
-    </>
+    </MotionProvider>
   );
 }

@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "instrument serif",
+        "createdAt": "2026-11-16T23:30:40.835Z",
+        "reason": "Design decision in the user-approved plan (Specimen Plate direction): Instrument Serif is the display face for the journal-plate concept; lines flagged are its metric-matched fallback @font-face"
+      }
+    ]
+  }
+}

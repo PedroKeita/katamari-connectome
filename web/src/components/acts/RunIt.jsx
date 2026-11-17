@@ -1,35 +1,78 @@
 import { useState } from 'react';
+import * as m from 'motion/react-m';
+import { AnimatePresence } from '../../motion/api';
 import Act, { SubHead, actStyles as a } from './Act';
+import Axon, { AxonNode } from '../../motion/Axon';
+import { DURATION, MEMBRANE_EASE } from '../../motion/tokens';
 import { RUN_STEPS, FLAGS, WS_SCHEMA, CONTROLS, REFERENCES } from '../../content/project';
 import styles from './RunIt.module.css';
 
-function CopyButton({ text, label }) {
+const COPY_LABEL = { idle: 'Copy', done: 'Copied', error: 'Copy failed' };
+
+function CopyButton({ text, label, onCopied }) {
   const [state, setState] = useState('idle');
   async function copy() {
     try {
       await navigator.clipboard.writeText(text);
       setState('done');
+      onCopied?.();
     } catch {
       setState('error');
     }
     setTimeout(() => setState('idle'), 1600);
   }
   return (
-    <button type="button" className={styles.copy} onClick={copy} data-state={state}>
-      <span aria-live="polite">
-        {state === 'done' ? 'Copied' : state === 'error' ? 'Copy failed' : 'Copy'}
+    <m.button
+      type="button"
+      className={styles.copy}
+      onClick={copy}
+      data-state={state}
+      whileTap={{ scale: 0.95 }}
+    >
+      {/* The label slides: the old word leaves upwards, the new one rises in. */}
+      <span className={styles.copySlot} aria-live="polite">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <m.span
+            key={state}
+            initial={{ y: 6, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -6, opacity: 0 }}
+            transition={{ duration: DURATION.quick, ease: MEMBRANE_EASE }}
+          >
+            {COPY_LABEL[state]}
+          </m.span>
+        </AnimatePresence>
       </span>
       <span className="sr-only"> {label}</span>
-    </button>
+    </m.button>
   );
 }
 
 function CodeBlock({ code, label, lang }) {
+  const [flash, setFlash] = useState(0);
   return (
     <div className={styles.code}>
+      {/* One yellow outline pulse confirms the copy (opacity only). */}
+      <AnimatePresence>
+        {flash > 0 && (
+          <m.span
+            key={flash}
+            className={styles.copyFlash}
+            aria-hidden="true"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 0 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            onAnimationComplete={() => setFlash(0)}
+          />
+        )}
+      </AnimatePresence>
       <div className={styles.codeBar}>
         <span>{lang}</span>
-        <CopyButton text={code.replace(/\s+#.*$/gm, '').replace(/\s+\/\/.*$/gm, '')} label={label} />
+        <CopyButton
+          text={code.replace(/\s+#.*$/gm, '').replace(/\s+\/\/.*$/gm, '')}
+          label={label}
+          onCopied={() => setFlash((n) => n + 1)}
+        />
       </div>
       <pre tabIndex={0} aria-label={label}><code>{code}</code></pre>
     </div>
@@ -45,10 +88,12 @@ export default function RunIt() {
       title="Run it yourself"
       lede="You need Python 3.10 or newer, the FlyWire v783 data and a copy of Katamari Damacy REROLL open on a monitor. Once main.py is running, the plate at the top of this page turns into the live brain."
     >
-      <div className={a.row}>
+      {/* Same grammar as the pipeline: a signal descends through the steps. */}
+      <Axon className={`${a.row} ${styles.stepsWrap}`} offset={['start 70%', 'end 60%']}>
         <ol className={styles.steps}>
           {RUN_STEPS.map((s, i) => (
             <li key={s.title}>
+              <AxonNode i={i} n={RUN_STEPS.length} />
               <h3 className={styles.stepTitle}>
                 <span className="mono">{String(i + 1).padStart(2, '0')}</span>
                 {s.title}
@@ -57,7 +102,7 @@ export default function RunIt() {
             </li>
           ))}
         </ol>
-      </div>
+      </Axon>
 
       <div className={`${a.row} ${styles.reference}`}>
         <div className={styles.flags}>

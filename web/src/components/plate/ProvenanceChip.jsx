@@ -1,4 +1,7 @@
+import * as m from 'motion/react-m';
+import { AnimatePresence } from '../../motion/api';
 import { useSession } from '../../hooks';
+import { DURATION, MEMBRANE_EASE } from '../../motion/tokens';
 import { formatTime } from '../../data/session';
 import styles from './ProvenanceChip.module.css';
 
@@ -19,8 +22,20 @@ export default function ProvenanceChip({ compact = false }) {
   return (
     <p className={styles.chip} data-mode={mode} title={c.title} aria-live="polite">
       <span className={styles.dot} aria-hidden="true" />
-      <span className={styles.label}>{c.label}</span>
-      {!compact && detail && <span className={styles.detail}>{detail}</span>}
+      {/* Mode changes cross-fade: the old label lifts out, the new one rises in. */}
+      <AnimatePresence mode="popLayout" initial={false}>
+        <m.span
+          key={mode}
+          className={styles.swap}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: DURATION.quick, ease: MEMBRANE_EASE }}
+        >
+          <span className={styles.label}>{c.label}</span>
+          {!compact && detail && <span className={styles.detail}>{detail}</span>}
+        </m.span>
+      </AnimatePresence>
       <span className="sr-only">. {c.title}</span>
     </p>
   );

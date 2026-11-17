@@ -62,6 +62,7 @@
     'a d d';
   grid-template-rows: auto 1fr;
   align-items: start;
+  perspective: 1400px;
   gap: var(--s-2) var(--s-5);
 }
 
@@ -208,6 +209,7 @@
   }
   .switcher {
     grid-area: switch;
+    position: relative;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     border: 1px solid var(--rule-2);
@@ -221,8 +223,18 @@
     color: var(--paper-3);
     transition: background var(--dur-1), color var(--dur-1);
   }
+  .switcher button { position: relative; z-index: 1; }
   .switcher button + button { border-left: 1px solid var(--rule-2); }
-  .switcher button[aria-pressed='true'] { background: var(--magenta); color: var(--ink-1); font-weight: 600; }
+  .switcher button[aria-pressed='true'] { color: var(--ink-1); font-weight: 600; }
+  /* Active pill slides between the three cells (transform only). */
+  .switchPill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: calc(100% / 3);
+    background: var(--magenta);
+  }
   .mobileHidden { display: none; }
   .canvasBody { min-height: 0; aspect-ratio: 4 / 3; }
 }
