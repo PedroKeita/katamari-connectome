@@ -1,0 +1,44 @@
+/* ── ScrollRail ───────────────────────────────────────────── */
+
+.rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  pointer-events: none;
+}
+.railTrack, .railFill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+}
+.railTrack { background: var(--rule); }
+.railFill { background: var(--magenta); }
+
+.railMark {
+  position: absolute;
+  top: -3px;
+  width: 1px;
+  height: 7px;
+  margin-left: -0.5px;
+  background: var(--paper-4);
+  transition: background var(--dur-2), transform var(--dur-2) var(--ease-out);
+}
+.railMark[data-passed] {
+  background: var(--yellow);
+  transform: scaleY(1.6);
+}
+
+/* ── Nav underline that glides between items ───────────────── */
+
+.navLine {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100px;          /* scaled to the active link's width */
+  height: 1px;
+  background: var(--magenta);
+  transform-origin: left center;
+  pointer-events: none;
+}

@@ -1,0 +1,166 @@
+.timeline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) 0;
+}
+
+.play {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink-1);
+  transition: background var(--dur-1), transform var(--dur-1);
+}
+.play svg { width: 13px; height: 13px; fill: currentColor; }
+.play:hover { background: var(--magenta); }
+
+/* Track: hairline + progress, collection ticks sit on it. */
+.track {
+  position: relative;
+  height: 32px;
+}
+.track::before,
+.track::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  pointer-events: none;
+}
+.track::before { right: 0; background: var(--ink-3); }
+.track::after {
+  right: 0;
+  background: var(--paper-3);
+  transform-origin: left center;
+  transform: scaleX(var(--pf, 0));
+}
+
+.range {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.range::-webkit-slider-runnable-track { height: 32px; background: transparent; }
+.range::-moz-range-track { height: 32px; background: transparent; }
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 2px;
+  height: 22px;
+  margin-top: 5px;
+  background: var(--paper);
+  border: 0;
+  border-radius: 0;
+  box-shadow: 0 0 0 3px var(--ink-1);
+}
+.range::-moz-range-thumb {
+  width: 2px;
+  height: 22px;
+  background: var(--paper);
+  border: 0;
+  border-radius: 0;
+}
+.range:focus-visible { outline-offset: 0; }
+
+.ticks {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  list-style: none;
+  pointer-events: none;
+}
+.ticks li { position: absolute; top: 0; bottom: 0; transform: translateX(-50%); }
+
+/* 12px hit area, 2px visible mark. */
+.tick {
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 100%;
+  pointer-events: auto;
+}
+.tick::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  background: var(--paper-4);
+  transition: background var(--dur-2), height var(--dur-1);
+}
+.tick[data-past]::before { background: var(--yellow); height: 14px; }
+.tick:hover::before { height: 20px; background: var(--yellow); }
+
+.readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 9.5rem;
+  font-size: var(--t-small);
+  color: var(--paper-3);
+  white-space: nowrap;
+}
+.time { color: var(--paper-2); }
+.sep { margin: 0 0.4em; color: var(--paper-3); }
+
+.label { color: var(--paper-3); }
+.countNum {
+  display: inline-block;
+  color: var(--yellow);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* Collection event: ring from the tick, and a +1 that lifts away. */
+.pulse {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 1.5px solid var(--yellow);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 3;
+}
+.plusSlot {
+  position: relative;
+  display: inline-block;
+  width: 0;
+}
+.plus {
+  position: absolute;
+  right: 6px;
+  bottom: 0;
+  font-family: var(--f-mono);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--yellow);
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .timeline { grid-template-columns: auto minmax(0, 1fr); row-gap: var(--s-1); }
+  .readout {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+}

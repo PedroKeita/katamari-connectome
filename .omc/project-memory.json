@@ -1,0 +1,297 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1794868798450,
+  "projectRoot": "C:\\Users\\T-GAMER\\katamari-connectome",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "requirements.txt"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "pip",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "brain": {
+      "path": "brain",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1794868798323,
+      "keyFiles": [
+        "__init__.py"
+      ]
+    },
+    "control": {
+      "path": "control",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1794868798324,
+      "keyFiles": [
+        "debug_hud.py",
+        "gamepad.py",
+        "integrator.py",
+        "__init__.py"
+      ]
+    },
+    "data": {
+      "path": "data",
+      "purpose": "Data files",
+      "fileCount": 3,
+      "lastAccessed": 1794868798324,
+      "keyFiles": [
+        "2025_Completeness_783.csv",
+        "2025_Connectivity_783.parquet",
+        "neuron_annotations.tsv"
+      ]
+    },
+    "demo": {
+      "path": "demo",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1794868798324,
+      "keyFiles": [
+        "gameplay.gif"
+      ]
+    },
+    "experiments": {
+      "path": "experiments",
+      "purpose": null,
+      "fileCount": 14,
+      "lastAccessed": 1794868798325,
+      "keyFiles": [
+        "test_attention.py",
+        "test_attention_visual.py",
+        "test_detect_live.py",
+        "test_flywire.py",
+        "test_live_brain.py"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 4,
+      "lastAccessed": 1794868798325,
+      "keyFiles": [
+        "test_core.py",
+        "test_main.py",
+        "test_session_logger.py",
+        "__init__.py"
+      ]
+    },
+    "tools": {
+      "path": "tools",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1794868798326,
+      "keyFiles": [
+        "record_session.py",
+        "visualizer.html"
+      ]
+    },
+    "vision": {
+      "path": "vision",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1794868798326,
+      "keyFiles": [
+        "__init__.py"
+      ]
+    },
+    "web": {
+      "path": "web",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1794868798330,
+      "keyFiles": [
+        "package-lock.json",
+        "package.json",
+        "README.md"
+      ]
+    },
+    "vision\\models": {
+      "path": "vision\\models",
+      "purpose": "Data models",
+      "fileCount": 3,
+      "lastAccessed": 1794868798337,
+      "keyFiles": [
+        "stimulus_map.py",
+        "visual_field.py",
+        "__init__.py"
+      ]
+    },
+    "web\\public": {
+      "path": "web\\public",
+      "purpose": "Public files",
+      "fileCount": 1,
+      "lastAccessed": 1794868798337,
+      "keyFiles": [
+        "index.html"
+      ]
+    },
+    "web\\src": {
+      "path": "web\\src",
+      "purpose": "Source code",
+      "fileCount": 3,
+      "lastAccessed": 1794868798338,
+      "keyFiles": [
+        "App.jsx",
+        "index.css",
+        "index.js"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "web/src/styles/global.css",
+      "accessCount": 1,
+      "lastAccessed": 1794869412082,
+      "type": "file"
+    },
+    {
+      "path": "web/src/content/project.js",
+      "accessCount": 1,
+      "lastAccessed": 1794869455222,
+      "type": "file"
+    },
+    {
+      "path": "web/src/data/session.js",
+      "accessCount": 1,
+      "lastAccessed": 1794869528067,
+      "type": "file"
+    },
+    {
+      "path": "web/src/data/sessionStore.js",
+      "accessCount": 1,
+      "lastAccessed": 1794869559855,
+      "type": "file"
+    },
+    {
+      "path": "web/src/components/acts/LifTrace.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1794869913021,
+      "type": "file"
+    },
+    {
+      "path": "web/src/components/acts/Method.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1794869914912,
+      "type": "file"
+    },
+    {
+      "path": "web/src/components/acts/Method.module.css",
+      "accessCount": 1,
+      "lastAccessed": 1794869916816,
+      "type": "file"
+    },
+    {
+      "path": "web/src/components/acts/Circuits.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1794869954569,
+      "type": "file"
+    },
+    {
+      "path": "web/src/components/acts/Circuits.module.css",
+      "accessCount": 1,
+      "lastAccessed": 1794869956566,
+      "type": "file"
+    },
+    {
+      "path": "web/src/components/acts/RunIt.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1794870004841,
+      "type": "file"
+    },
+    {
+      "path": "web/src/components/acts/RunIt.module.css",
+      "accessCount": 1,
+      "lastAccessed": 1794870006770,
+      "type": "file"
+    },
+    {
+      "path": "web/src/components/layout/Masthead.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1794870008458,
+      "type": "file"
+    },
+    {
+      "path": "web/src/components/layout/SiteFooter.jsx",
+      "accessCount": 1.9998199263088572,
+      "lastAccessed": 1794870032658,
+      "type": "file"
+    },
+    {
+      "path": "web/src/components/layout/Layout.module.css",
+      "accessCount": 1,
+      "lastAccessed": 1794870034660,
+      "type": "file"
+    },
+    {
+      "path": "web/src/App.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1794870036824,
+      "type": "file"
+    },
+    {
+      "path": "web/src/index.js",
+      "accessCount": 1,
+      "lastAccessed": 1794870039459,
+      "type": "file"
+    },
+    {
+      "path": "web/src/components/plate/Plate.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1794870289803,
+      "type": "file"
+    },
+    {
+      "path": ".playwright-mcp/m390.png",
+      "accessCount": 1,
+      "lastAccessed": 1794870430823,
+      "type": "file"
+    },
+    {
+      "path": "web/public/media/poster.jpg",
+      "accessCount": 1,
+      "lastAccessed": 1794871410849,
+      "type": "file"
+    },
+    {
+      "path": ".playwright-mcp/r2-m.png",
+      "accessCount": 1,
+      "lastAccessed": 1794871483306,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

@@ -1,0 +1,66 @@
+/* ── Threshold: per-word membrane ─────────────────────────── */
+
+.mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  /* Room for descenders and italic overhang inside the clip. */
+  padding: 0 0.08em 0.14em 0;
+  margin: 0 -0.08em -0.14em 0;
+}
+.word { display: inline-block; will-change: transform; }
+
+/* ── ActRing: sticky numeral that closes as the act is read ── */
+
+.ringRail {
+  position: absolute;
+  top: var(--s-9);
+  bottom: var(--s-8);
+  left: var(--gutter);
+  width: 96px;
+  pointer-events: none;
+}
+.ringSticky {
+  position: sticky;
+  top: calc(var(--masthead-h) + var(--s-6));
+  display: grid;
+  justify-items: center;
+  gap: var(--s-2);
+  width: 72px;
+}
+.ring { width: 72px; height: 72px; grid-area: 1 / 1; }
+.ringTrack { fill: none; stroke: var(--rule-2); stroke-width: 1.5; }
+.ringFill { fill: none; stroke: var(--magenta); stroke-width: 2; stroke-linecap: round; }
+.ringNumeral {
+  grid-area: 1 / 1;
+  align-self: center;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--magenta);
+}
+.ringKicker {
+  font-family: var(--f-mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--paper-3);
+}
+
+/* Shown only where the gutter is wide enough not to collide with marginalia. */
+@media (max-width: 1239px) {
+  .ringRail { display: none; }
+}
+
+/* ── Boundary hairline between acts ───────────────────────── */
+
+.boundary {
+  position: absolute;
+  top: 0;
+  left: var(--gutter);
+  right: var(--gutter);
+  height: 1px;
+  background: var(--rule-2);
+  transform-origin: left center;
+}

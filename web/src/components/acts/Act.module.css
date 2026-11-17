@@ -1,0 +1,111 @@
+/* Shared editorial grid for acts II–IV.
+   12 columns; the first three are the gutter (numerals, marginalia). */
+
+.act {
+  position: relative;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: var(--s-9) var(--gutter) var(--s-8);
+}
+
+/* The sticky ActRing replaces the static kicker where the gutter is wide. */
+@media (min-width: 1240px) {
+  .kicker { visibility: hidden; }
+}
+
+.head,
+.subhead,
+.row {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--s-5);
+}
+
+.kicker {
+  grid-column: 1 / span 3;
+  grid-row: 1 / span 3;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  font-family: var(--f-mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--paper-3);
+}
+.numeral {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 3.5rem;
+  line-height: 0.8;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--magenta);
+}
+
+.title {
+  grid-column: 4 / span 8;
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: var(--t-h2);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--paper);
+  text-wrap: balance;
+}
+
+.lede {
+  grid-column: 4 / span 6;
+  margin-top: var(--s-5);
+  font-size: var(--t-lead);
+  line-height: 1.5;
+  color: var(--paper-2);
+}
+
+.subhead { margin: var(--s-9) 0 var(--s-5); align-items: baseline; }
+.subNote {
+  grid-column: 1 / span 3;
+  justify-self: end;
+  text-align: right;
+  font-family: var(--f-mono);
+  font-size: var(--t-micro);
+  color: var(--paper-3);
+  letter-spacing: 0.04em;
+}
+.h3 {
+  grid-column: 4 / span 8;
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: var(--t-h3);
+  line-height: 1.15;
+  color: var(--paper);
+}
+
+/* Utilities for act bodies */
+.body { grid-column: 4 / span 9; min-width: 0; }
+.prose { grid-column: 4 / span 6; }
+.prose p + p { margin-top: var(--s-4); }
+.gutter {
+  grid-column: 1 / span 3;
+  font-family: var(--f-mono);
+  font-size: var(--t-micro);
+  color: var(--paper-3);
+}
+
+@media (max-width: 900px) {
+  .act { padding-top: var(--s-8); }
+  .head, .subhead, .row { grid-template-columns: minmax(0, 1fr); }
+  .kicker {
+    grid-column: 1;
+    grid-row: auto;
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--s-3);
+    margin-bottom: var(--s-4);
+  }
+  .numeral { font-size: 2.25rem; }
+  .title, .lede, .h3, .subNote, .body, .prose, .gutter { grid-column: 1; }
+  .subNote { justify-self: start; text-align: left; }
+  .subhead { margin-top: var(--s-8); }
+  .subNote { margin-bottom: var(--s-2); }
+}

@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { getSnapshot } from '../data/sessionStore';
+import { createRenderGate, createDragRotate } from '../three/renderGate';
 
 const MAT = {
   body:     new THREE.MeshPhongMaterial({ color: 0xac592a, shininess: 40, specular: 0x442211 }),
@@ -76,20 +78,25 @@ const FILES = [
   'wing_right_brown','wing_right_membrane',
 ];
 
-export default function FlyBody3D({ state, assetsPath = '/assets' }) {
-  const canvasRef  = useRef(null);
-  const stateRef   = useRef(state);
-  stateRef.current = state;
+/**
+ * Anatomical fly rig (meshes from TuragaLab/flybody). Wing-beat frequency and
+ * amplitude follow motor magnitude; an escape event splays the wings wide.
+ * Meshes load only when the figure first nears the viewport.
+ */
+export default function FlyBody3D({ assetsPath = `${process.env.PUBLIC_URL || ''}/assets` }) {
+  const canvasRef = useRef(null);
+  const [loaded, setLoaded] = useState(0);
+  const [failed, setFailed] = useState(0);
 
   useEffect(() => {
     const el = canvasRef.current;
-    if (!el) return;
+    if (!el) return undefined;
 
     const renderer = new THREE.WebGLRenderer({ canvas: el, antialias: true, alpha: true });
     renderer.setClearColor(0, 0);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    const scene  = new THREE.Scene();
+    const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(40, 1, 0.001, 50);
     camera.position.set(0, -0.6, 0);
     camera.lookAt(0, 0, 0);
@@ -100,7 +107,9 @@ export default function FlyBody3D({ state, assetsPath = '/assets' }) {
     const lT = new THREE.DirectionalLight(0xffffff, 0.3); lT.position.set(0, 0, 2); scene.add(lT);
 
     function resize() {
-      const w = el.clientWidth, h = el.clientHeight;
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (!w || !h) return;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -109,99 +118,102 @@ export default function FlyBody3D({ state, assetsPath = '/assets' }) {
     const ro = new ResizeObserver(resize);
     ro.observe(el);
 
-    const flyRoot  = new THREE.Group();
+    const flyRoot = new THREE.Group();
     const wingPivL = new THREE.Group();
     const wingPivR = new THREE.Group();
-    const halPivL  = new THREE.Group();
-    const halPivR  = new THREE.Group();
-
-    // Sem offset — os OBJs já têm coordenadas absolutas corretas
-    // A rotação anima em torno da origem onde as asas naturalmente se encaixam
-
+    const halPivL = new THREE.Group();
+    const halPivR = new THREE.Group();
+    // OBJ files carry absolute coordinates; pivots rotate about the origin.
     flyRoot.add(wingPivL, wingPivR, halPivL, halPivR);
-    flyRoot.position.z = -0.12; // desloca a mosca para baixo na tela
+    flyRoot.position.z = -0.12;
     scene.add(flyRoot);
 
-    const parts = { wingL: [], wingR: [], haltereL: [], haltereR: [] };
+    let disposed = false;
     const loader = new OBJLoader();
+    function loadMeshes() {
+      FILES.forEach((name) => {
+        loader.load(
+          `${assetsPath}/${name}.obj`,
+          (obj) => {
+            if (disposed) return;
+            const mat = matForFile(name);
+            const role = partRole(name);
+            obj.traverse((child) => { if (child.isMesh) child.material = mat; });
+            obj.scale.setScalar(0.1);
+            if (role === 'wingL') wingPivL.add(obj);
+            else if (role === 'wingR') wingPivR.add(obj);
+            else if (role === 'haltereL') halPivL.add(obj);
+            else if (role === 'haltereR') halPivR.add(obj);
+            else flyRoot.add(obj);
+            setLoaded((n) => n + 1);
+          },
+          undefined,
+          () => { if (!disposed) setFailed((n) => n + 1); },
+        );
+      });
+    }
 
-    FILES.forEach(name => {
-      loader.load(
-        `${assetsPath}/${name}.obj`,
-        (obj) => {
-          const mat  = matForFile(name);
-          const role = partRole(name);
-          obj.traverse(child => { if (child.isMesh) child.material = mat; });
-          obj.scale.setScalar(0.1);
-          if      (role === 'wingL')    { wingPivL.add(obj); parts.wingL.push(obj);    }
-          else if (role === 'wingR')    { wingPivR.add(obj); parts.wingR.push(obj);    }
-          else if (role === 'haltereL') { halPivL.add(obj);  parts.haltereL.push(obj); }
-          else if (role === 'haltereR') { halPivR.add(obj);  parts.haltereR.push(obj); }
-          else                          { flyRoot.add(obj); }
-        },
-        undefined,
-        () => {}
-      );
-    });
+    const gate = createRenderGate(el, { onVisible: loadMeshes, rootMargin: '300px' });
+    const drag = createDragRotate(el, { sx: 0.012, sy: 0.007, clampX: Math.PI });
 
-    let drag = false, lx = 0, ly = 0;
-    let rotX = 0, rotY = 0;
-
-    const onDown = e => { drag = true; lx = e.clientX; ly = e.clientY; };
-    const onUp   = () => (drag = false);
-    const onMove = e => {
-      if (!drag) return;
-      rotY += (e.clientX - lx) * 0.012;
-      rotX += (e.clientY - ly) * 0.007;
-      rotX  = Math.max(-Math.PI, Math.min(Math.PI, rotX));
-      lx = e.clientX; ly = e.clientY;
-    };
-    el.addEventListener('mousedown', onDown);
-    window.addEventListener('mouseup',   onUp);
-    window.addEventListener('mousemove', onMove);
-
-    let t = 0, raf;
+    let t = 0;
+    let raf;
     function frame() {
       raf = requestAnimationFrame(frame);
+      if (!gate.active) return;
       t += 0.016;
 
-      const st  = stateRef.current;
-      const mag = st.mag           ?? 0;
-      const esc = st.escape_active ?? false;
+      const st = getSnapshot().frame;
+      const mag = st.mag;
+      const esc = st.escape_active;
 
-      flyRoot.rotation.x = rotX;
-      flyRoot.rotation.z = rotY;
+      flyRoot.rotation.x = drag.state.x;
+      flyRoot.rotation.z = drag.state.y;
 
-      const wFreq = esc ? 28 : (8 + mag * 18);
-      const wAmp  = esc ? 1.2 : (0.45 + mag * 0.65);
-      const wSin  = Math.sin(t * wFreq) * wAmp;
-
-      // Asas batem simétricas no eixo X (cima/baixo)
-      // sem rotação Z que as jogava para lados errados
-      wingPivL.rotation.x =  wSin;
-      wingPivR.rotation.x =  wSin;
-
+      const wFreq = esc ? 28 : 8 + mag * 18;
+      const wAmp = esc ? 1.2 : 0.45 + mag * 0.65;
+      const wSin = Math.sin(t * wFreq) * wAmp;
+      wingPivL.rotation.x = wSin;
+      wingPivR.rotation.x = wSin;
       halPivL.rotation.x = Math.sin(t * wFreq * 0.5 + Math.PI) * 0.3;
-      halPivR.rotation.x = Math.sin(t * wFreq * 0.5)            * 0.3;
+      halPivR.rotation.x = Math.sin(t * wFreq * 0.5) * 0.3;
 
       renderer.render(scene, camera);
     }
-    frame();
+    raf = requestAnimationFrame(frame);
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(raf);
       ro.disconnect();
-      el.removeEventListener('mousedown', onDown);
-      window.removeEventListener('mouseup',   onUp);
-      window.removeEventListener('mousemove', onMove);
+      gate.dispose();
+      drag.dispose();
+      scene.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
       renderer.dispose();
     };
   }, [assetsPath]);
 
+  const total = FILES.length;
+  const done = loaded + failed;
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab' }}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        className="webgl"
+        tabIndex={0}
+        role="img"
+        aria-label="Anatomical 3D fruit fly. Wing-beat speed and amplitude follow the motor drive; during an escape the wings splay wide. Drag or use arrow keys to rotate."
+      />
+      {done < total && (
+        <p className="webgl-status" role="status">
+          {loaded === 0 ? 'Loading anatomy…' : `Loading anatomy · ${loaded}/${total}`}
+        </p>
+      )}
+      {done === total && failed > 0 && (
+        <p className="webgl-status" role="status">
+          {failed} of {total} meshes failed to load
+        </p>
+      )}
+    </>
   );
 }

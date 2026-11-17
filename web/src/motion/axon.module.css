@@ -1,0 +1,58 @@
+/* The axon sits in the column gap left of the stage column:
+   with 12 cols and a 24px gap, that gap's centre is at 25% − 6px. */
+.axon {
+  --axon-x: calc(25% - 6px);
+  position: relative;
+}
+
+.line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--axon-x) - 6px);
+  width: 12px;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.track { fill: none; stroke: var(--rule-2); stroke-width: 1; }
+.signal { fill: none; stroke: var(--magenta); stroke-width: 1.5; stroke-linecap: round; }
+
+.spike {
+  position: absolute;
+  top: -5px;
+  left: calc(var(--axon-x) - 5px);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--magenta);
+  box-shadow: 0 0 0 4px rgba(255, 63, 142, 0.18), 0 0 16px 2px rgba(255, 63, 142, 0.45);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Node beside each item; positioned by the item (needs position: relative). */
+.node {
+  position: absolute;
+  top: calc(var(--s-5) + 0.55em);
+  left: calc(var(--axon-x) - 5px);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--magenta);
+  background: var(--ink-1);
+  pointer-events: none;
+  z-index: 1;
+}
+.nodeLit {
+  position: absolute;
+  inset: 1.5px;
+  border-radius: 50%;
+  background: var(--magenta);
+}
+
+/* Single column: the axon moves into the page gutter. */
+@media (max-width: 900px) {
+  .axon { --axon-x: calc(-1 * var(--gutter) / 2); }
+  .spike { box-shadow: none; }
+}
